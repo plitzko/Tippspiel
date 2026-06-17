@@ -5,6 +5,7 @@ const state = {
   userId: localStorage.getItem("userId") || null,
   user: null,
   tab: "tippen",
+  dayKey: null,
   points: { difference: 2, winner: 1, goalPerTeam: 1 },
 };
 
@@ -32,10 +33,13 @@ const el = (html) => {
   return t.content.firstChild;
 };
 const app = () => document.getElementById("app");
-const fmtDate = (iso) => new Date(iso).toLocaleString("de-DE", {
-  weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
-});
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+const dayKeyOf = (iso) => new Date(iso).toLocaleDateString("sv-SE"); // YYYY-MM-DD lokal
+const todayKey = () => new Date().toLocaleDateString("sv-SE");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const ICON_EXIT = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`;
+const chevron = (dir) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir === "left" ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}"/></svg>`;
 
 // ---- Spieler-Themen (Lina = rosa, Maxi = blau, sonst gold) ----
 const PLAYERS = {
@@ -61,12 +65,11 @@ function applyTheme(name) {
   r.setProperty("--accent-contrast", t.contrast);
   r.setProperty("--accent-weak", hexA(t.color, 0.16));
   r.setProperty("--accent-glow", hexA(t.color, 0.4));
-  // Mobile-Statusleiste / Browser-UI in Spielerfarbe (dunkle Tönung)
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", name ? darken(t.color, 0.55) : "#0a0e1a");
 }
 
-// ---- Flaggen (deutscher Name -> ISO-Code für flagcdn.com) ----
+// ---- Flaggen ----
 const FLAGS = {
   "Mexiko": "mx", "Südafrika": "za", "Südkorea": "kr", "Tschechien": "cz",
   "Kanada": "ca", "Bosnien-Herzegowina": "ba", "Katar": "qa", "Schweiz": "ch",
@@ -101,14 +104,8 @@ async function init() {
   state.points = status.points || state.points;
 
   const me = status.players.find(p => p.id === state.userId);
-  if (me) {
-    state.user = me;
-    renderApp();
-  } else {
-    setUser(null);
-    applyTheme(null);
-    renderPlayerSelect(status);
-  }
+  if (me) { state.user = me; renderApp(); }
+  else { setUser(null); applyTheme(null); renderPlayerSelect(status); }
 }
 
 // ============ "Wer bist du?" ============
@@ -117,7 +114,7 @@ function renderPlayerSelect(status) {
     <div class="auth-wrap">
       <div class="brand" style="justify-content:center;margin-bottom:22px">
         <span class="logo">⚽</span>
-        <h1>${TITLE}<small>Tippt die WM 2026 – wer kennt sich besser aus?</small></h1>
+        <div class="brand-text"><h1>${TITLE}</h1><small>Tippt die WM 2026 – wer kennt sich besser aus?</small></div>
       </div>
       <div class="card">
         <h2>Wer bist du?</h2>
@@ -138,11 +135,11 @@ function renderPlayerSelect(status) {
     const color = themeFor(p.name).color;
     const b = el(`
       <button class="player-pick" style="--pc:${color}">
-        <span class="pavatar">${esc(p.name[0] || "?").toUpperCase()}</span>
+        <span class="pavatar">${esc((p.name[0] || "?").toUpperCase())}</span>
         <span>${esc(p.name)}</span>
         <span class="arrow">→</span>
       </button>`);
-    b.onclick = () => { setUser(p); state.tab = "tippen"; renderApp(); };
+    b.onclick = () => { setUser(p); state.tab = "tippen"; state.dayKey = null; renderApp(); };
     list.appendChild(b);
   }
 
@@ -160,10 +157,8 @@ function renderPlayerSelect(status) {
       const err = view.querySelector("#ps-err");
       err.textContent = "";
       if (!name) { err.textContent = "Bitte einen Namen eingeben."; return; }
-      try {
-        const data = await api("POST", "/api/players", { name });
-        setUser(data.player); state.tab = "tippen"; renderApp();
-      } catch (e) { err.textContent = e.message; }
+      try { const data = await api("POST", "/api/players", { name }); setUser(data.player); state.tab = "tippen"; renderApp(); }
+      catch (e) { err.textContent = e.message; }
     };
     form.querySelector("#ps-create").onclick = create;
     form.querySelector("#ps-name").addEventListener("keydown", e => { if (e.key === "Enter") create(); });
@@ -173,21 +168,16 @@ function renderPlayerSelect(status) {
 // ============ Haupt-App ============
 function renderApp() {
   applyTheme(state.user.name);
-  const p = state.points;
-  const exact = p.winner + p.difference + 2 * p.goalPerTeam;
-  const tabs = [["tippen", "⚽ Tippen"], ["rangliste", "🏆 Rangliste"], ["verwalten", "⚙️ Spiele"]];
+  const tabs = [["tippen", "⚽ Tippen"], ["rangliste", "🏆 Rangliste"], ["ergebnisse", "🔄 Ergebnisse"]];
 
   const view = el(`
     <div>
       <div class="topbar">
         <div class="brand">
           <span class="logo">⚽</span>
-          <h1>${TITLE}<small>${exact} P. exakt · ${p.difference} P. Differenz · ${p.winner} P. Sieger · ${p.goalPerTeam} P. je Mannschafts-Tor</small></h1>
+          <div class="brand-text"><h1>${TITLE}</h1><small>Hi, <b style="color:var(--accent)">${esc(state.user.name)}</b></small></div>
         </div>
-        <div class="userbox">
-          <span class="me">${esc(state.user.name)}</span>
-          <button class="btn secondary small" id="switch">Wechseln</button>
-        </div>
+        <button class="icon-btn" id="switch" title="Spieler wechseln" aria-label="Spieler wechseln">${ICON_EXIT}</button>
       </div>
       <div class="tabs" id="tabs"></div>
       <div id="content"></div>
@@ -207,22 +197,74 @@ function renderApp() {
   const content = view.querySelector("#content");
   if (state.tab === "tippen") renderMatches(content);
   else if (state.tab === "rangliste") renderStandings(content);
-  else if (state.tab === "verwalten") renderManage(content);
+  else if (state.tab === "ergebnisse") renderResults(content);
 }
 
-// ============ Tippen ============
+// ============ Tippen (Kalender nach Tagen) ============
 async function renderMatches(content) {
   content.innerHTML = `<div class="empty">Lade Spiele…</div>`;
   let data;
   try { data = await api("GET", "/api/matches"); }
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
 
-  if (!data.matches.length) {
-    content.innerHTML = `<div class="empty">Noch keine Spiele angelegt. Lege im Tab „Spiele" welche an.</div>`;
-    return;
+  const matches = data.matches;
+  if (!matches.length) { content.innerHTML = `<div class="empty">Noch keine Spiele angelegt.</div>`; return; }
+
+  // nach Tag gruppieren
+  const byDay = new Map();
+  for (const m of matches) {
+    const k = dayKeyOf(m.kickoff);
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(m);
   }
+  const days = [...byDay.keys()].sort();
+
+  // Standardtag bestimmen (heute, sonst nächster mit Spielen, sonst letzter)
+  if (!state.dayKey || !byDay.has(state.dayKey)) {
+    const t = todayKey();
+    state.dayKey = days.includes(t) ? t : (days.find(d => d >= t) || days[days.length - 1]);
+  }
+  const idx = days.indexOf(state.dayKey);
+  const dayMatches = byDay.get(state.dayKey);
+
   content.innerHTML = "";
-  for (const m of data.matches) content.appendChild(matchCard(m));
+
+  // Tages-Navigation
+  const d = new Date(state.dayKey + "T12:00:00");
+  const rel = relDayLabel(state.dayKey);
+  const dateStr = d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+  const nav = el(`
+    <div class="day-nav">
+      <button class="day-arrow" id="day-prev" ${idx <= 0 ? "disabled" : ""} aria-label="Vorheriger Tag">${chevron("left")}</button>
+      <div class="day-label">
+        ${rel ? `<div class="day-rel">${rel}</div>` : ""}
+        <div class="day-date">${dateStr}</div>
+        <div class="day-count">${dayMatches.length} ${dayMatches.length === 1 ? "Spiel" : "Spiele"} · Tag ${idx + 1}/${days.length}</div>
+      </div>
+      <button class="day-arrow" id="day-next" ${idx >= days.length - 1 ? "disabled" : ""} aria-label="Nächster Tag">${chevron("right")}</button>
+    </div>
+  `);
+  content.appendChild(nav);
+  const go = (delta) => {
+    const ni = idx + delta;
+    if (ni < 0 || ni >= days.length) return;
+    state.dayKey = days[ni];
+    renderMatches(content);
+  };
+  nav.querySelector("#day-prev").onclick = () => go(-1);
+  nav.querySelector("#day-next").onclick = () => go(1);
+
+  for (const m of dayMatches) content.appendChild(matchCard(m));
+}
+
+function relDayLabel(key) {
+  const t = todayKey();
+  if (key === t) return "Heute";
+  const today = new Date(t + "T12:00:00"), d = new Date(key + "T12:00:00");
+  const diff = Math.round((d - today) / 86400000);
+  if (diff === 1) return "Morgen";
+  if (diff === -1) return "Gestern";
+  return null;
 }
 
 function centerHtml(m) {
@@ -241,10 +283,8 @@ function centerHtml(m) {
 function matchCard(m) {
   const card = el(`<div class="card match ${m.locked ? "locked" : "open"}"></div>`);
   const status = !m.locked
-    ? `<span class="status">${fmtDate(m.kickoff)}</span>`
-    : (m.homeScore != null
-        ? `<span class="status final">🔒 Endstand</span>`
-        : `<span class="status live">🔒 läuft</span>`);
+    ? `<span class="status">${fmtTime(m.kickoff)} Uhr</span>`
+    : (m.homeScore != null ? `<span class="status final">🔒 Endstand</span>` : `<span class="status live">🔒 läuft</span>`);
 
   card.innerHTML = `
     <div class="match-head">
@@ -307,7 +347,7 @@ function tipCard(t, m) {
   `);
 }
 
-// ============ Rangliste / Scoreboard ============
+// ============ Rangliste + Punkte-Regeln ============
 async function renderStandings(content) {
   content.innerHTML = `<div class="empty">Lade…</div>`;
   let data;
@@ -320,9 +360,8 @@ async function renderStandings(content) {
   if (s.length === 2) {
     const [a, b] = s;
     const diff = a.points - b.points;
-    const lead = diff === 0
-      ? "Gleichstand! 🤝 Jeder Tipp zählt."
-      : `<b>${esc(a.name)}</b> führt mit ${diff} Punkt${diff === 1 ? "" : "en"}.`;
+    const tie = diff === 0;
+    const lead = tie ? "Gleichstand! 🤝 Jeder Tipp zählt." : `<b>${esc(a.name)}</b> führt mit ${diff} Punkt${diff === 1 ? "" : "en"}.`;
     const sbCard = (p, rank, isLeader) => {
       const color = themeFor(p.name).color;
       const me = p.userId === state.user.id;
@@ -335,151 +374,82 @@ async function renderStandings(content) {
           <div class="sb-meta">${p.exact} exakt · ${p.tips} Tipps</div>
         </div>`;
     };
-    const tie = diff === 0;
     content.appendChild(el(`
       <div class="scoreboard">
         ${sbCard(a, tie ? "🤝" : "🥇", !tie)}
         <div class="sb-mid"><div class="sb-vs">VS</div></div>
         ${sbCard(b, tie ? "🤝" : "🥈", false)}
-      </div>
-    `));
+      </div>`));
     content.appendChild(el(`<div class="lead-msg">${lead}</div>`));
-    return;
+  } else {
+    const medals = ["🥇", "🥈", "🥉"];
+    for (let i = 0; i < s.length; i++) {
+      const p = s[i];
+      content.appendChild(el(`
+        <div class="card" style="--pc:${themeFor(p.name).color};display:flex;align-items:center;gap:12px">
+          <span style="font-size:20px">${medals[i] || (i + 1)}</span>
+          <span style="font-weight:700;flex:1">${esc(p.name)}${p.userId === state.user.id ? " (du)" : ""}</span>
+          <span style="font-size:22px;font-weight:900;color:var(--pc)">${p.points}</span>
+        </div>`));
+    }
+    if (!s.length) content.appendChild(el(`<div class="empty">Noch keine Spieler.</div>`));
   }
 
-  // Fallback (mehr/weniger als 2 Spieler)
-  const medals = ["🥇", "🥈", "🥉"];
-  const rows = s.map((p, i) => `
-    <div class="card" style="--pc:${themeFor(p.name).color};display:flex;align-items:center;gap:12px">
-      <span style="font-size:20px">${medals[i] || (i + 1)}</span>
-      <span style="font-weight:700;flex:1">${esc(p.name)}${p.userId === state.user.id ? " (du)" : ""}</span>
-      <span style="font-size:22px;font-weight:900;color:var(--pc)">${p.points}</span>
-      <span class="muted">${p.exact} exakt · ${p.tips} Tipps</span>
-    </div>`).join("");
-  content.innerHTML = rows || `<div class="empty">Noch keine Spieler.</div>`;
+  // Punkte-Regeln
+  const p = state.points;
+  const exact = p.winner + p.difference + 2 * p.goalPerTeam;
+  content.appendChild(el(`
+    <div class="card rules">
+      <div class="section-title" style="margin-top:0">So gibt's Punkte – alles wird addiert</div>
+      <ul class="rules-list">
+        <li><span>Richtige Tendenz (Sieger oder Remis)</span><b>+${p.winner}</b></li>
+        <li><span>Richtige Tordifferenz</span><b>+${p.difference}</b></li>
+        <li><span>Richtige Tore Heimteam</span><b>+${p.goalPerTeam}</b></li>
+        <li><span>Richtige Tore Gastteam</span><b>+${p.goalPerTeam}</b></li>
+      </ul>
+      <div class="rules-foot">Tipp komplett richtig = <b>${exact} Punkte</b></div>
+    </div>`));
 }
 
-// ============ Spiele verwalten ============
-async function renderManage(content) {
+// ============ Ergebnisse aktualisieren ============
+async function renderResults(content) {
   content.innerHTML = `<div class="empty">Lade…</div>`;
   let data;
   try { data = await api("GET", "/api/matches"); }
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
 
-  content.innerHTML = "";
+  const finished = data.matches.filter(m => m.homeScore != null).length;
+  const total = data.matches.length;
 
-  // Ergebnisse automatisch holen
-  const syncCard = el(`
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div>
-          <strong>Ergebnisse automatisch holen</strong>
-          <div class="muted">Lädt die echten WM-Resultate und aktualisiert die Punkte.</div>
-        </div>
-        <button class="btn small" id="sync-btn">🔄 Jetzt holen</button>
-      </div>
+  content.innerHTML = "";
+  const card = el(`
+    <div class="card sync-card">
+      <div class="sync-icon">🔄</div>
+      <h2 class="sync-title">Ergebnisse aktualisieren</h2>
+      <p class="muted sync-desc">Holt die echten WM-Ergebnisse aus dem offiziellen Spielplan und berechnet die Punkte neu.</p>
+      <div class="sync-stat"><b>${finished}</b> von ${total} Spielen ausgewertet</div>
+      <button class="btn" id="sync-btn">Jetzt aktualisieren</button>
       <div class="save-hint" id="sync-hint"></div>
     </div>
   `);
-  content.appendChild(syncCard);
-  syncCard.querySelector("#sync-btn").onclick = async () => {
-    const btn = syncCard.querySelector("#sync-btn");
-    const hint = syncCard.querySelector("#sync-hint");
-    btn.disabled = true; btn.textContent = "⏳ Hole…"; hint.textContent = ""; hint.classList.remove("ok");
+  content.appendChild(card);
+
+  const btn = card.querySelector("#sync-btn");
+  const hint = card.querySelector("#sync-hint");
+  btn.onclick = async () => {
+    btn.disabled = true; btn.textContent = "⏳ Hole Ergebnisse…"; hint.textContent = ""; hint.classList.remove("ok");
     try {
-      const s = await api("POST", "/api/results/sync");
-      hint.textContent = s.updated > 0
-        ? `✓ ${s.updated} Ergebnis(se) aktualisiert (${s.withResult} fertige Spiele insgesamt).`
-        : `Keine neuen Ergebnisse – alles aktuell (${s.withResult} fertige Spiele).`;
+      const r = await api("POST", "/api/results/sync");
+      hint.textContent = r.updated > 0
+        ? `✓ ${r.updated} Ergebnis(se) aktualisiert.`
+        : `Alles aktuell – keine neuen Ergebnisse.`;
       hint.classList.add("ok");
-      if (s.updated > 0) setTimeout(() => renderManage(content), 900);
-    } catch (e) { hint.textContent = "Fehler: " + e.message; }
-    finally { btn.disabled = false; btn.textContent = "🔄 Jetzt holen"; }
+      setTimeout(() => renderResults(content), 1100);
+    } catch (e) {
+      hint.textContent = "Fehler: " + e.message;
+      btn.disabled = false; btn.textContent = "Jetzt aktualisieren";
+    }
   };
-
-  // Neues Spiel anlegen
-  const addCard = el(`
-    <div class="card">
-      <div class="section-title" style="margin-top:0">Neues Spiel anlegen</div>
-      <div class="admin-grid">
-        <div class="field"><label>Heim</label><input id="a-home" placeholder="z.B. Deutschland"/></div>
-        <div class="field"><label>Gast</label><input id="a-away" placeholder="z.B. Brasilien"/></div>
-        <div class="field"><label>Anpfiff</label><input id="a-kick" type="datetime-local"/></div>
-        <div class="field"><label>Phase</label><input id="a-stage" placeholder="Gruppe A"/></div>
-        <button class="btn small" id="a-add">+ Anlegen</button>
-      </div>
-      <div class="error" id="a-err"></div>
-    </div>
-  `);
-  content.appendChild(addCard);
-  addCard.querySelector("#a-add").onclick = async () => {
-    const err = addCard.querySelector("#a-err");
-    err.textContent = "";
-    const body = {
-      home: addCard.querySelector("#a-home").value.trim(),
-      away: addCard.querySelector("#a-away").value.trim(),
-      kickoff: addCard.querySelector("#a-kick").value,
-      stage: addCard.querySelector("#a-stage").value.trim(),
-    };
-    if (!body.home || !body.away || !body.kickoff) { err.textContent = "Heim, Gast und Anpfiff sind nötig."; return; }
-    try { await api("POST", "/api/matches", body); renderManage(content); }
-    catch (e) { err.textContent = e.message; }
-  };
-
-  content.appendChild(el(`<div class="section-title">Spiele & Ergebnisse</div>`));
-  if (!data.matches.length) { content.appendChild(el(`<div class="empty">Noch keine Spiele.</div>`)); return; }
-  for (const m of data.matches) content.appendChild(manageMatchRow(m, content));
-}
-
-function manageMatchRow(m, content) {
-  const card = el(`
-    <div class="card">
-      <div class="match-head">
-        <span class="stage-badge">${esc(m.stage || "Spiel")}</span>
-        <span class="status">${fmtDate(m.kickoff)}</span>
-      </div>
-      <div class="matchup">
-        ${sideHtml(m.home, "home")}
-        <div class="score-input">
-          <input type="number" min="0" max="99" class="r-home" value="${m.homeScore ?? ""}"/>
-          <i>:</i>
-          <input type="number" min="0" max="99" class="r-away" value="${m.awayScore ?? ""}"/>
-        </div>
-        ${sideHtml(m.away, "away")}
-      </div>
-      <div class="row-actions">
-        <button class="btn small r-save">Ergebnis speichern</button>
-        <button class="btn small secondary r-clear">Ergebnis löschen</button>
-        <button class="btn small danger r-del">Spiel löschen</button>
-      </div>
-      <div class="save-hint r-hint"></div>
-    </div>
-  `);
-  const hint = card.querySelector(".r-hint");
-  const setHint = (txt, ok) => { hint.textContent = txt; hint.classList.toggle("ok", !!ok); };
-
-  card.querySelector(".r-save").onclick = async () => {
-    try {
-      await api("PUT", `/api/matches/${m.id}/result`, {
-        homeScore: card.querySelector(".r-home").value,
-        awayScore: card.querySelector(".r-away").value,
-      });
-      setHint("✓ Ergebnis gespeichert – Punkte aktualisiert", true);
-    } catch (e) { setHint(e.message, false); }
-  };
-  card.querySelector(".r-clear").onclick = async () => {
-    try {
-      await api("PUT", `/api/matches/${m.id}/result`, { homeScore: null, awayScore: null });
-      card.querySelector(".r-home").value = ""; card.querySelector(".r-away").value = "";
-      setHint("Ergebnis gelöscht", true);
-    } catch (e) { setHint(e.message, false); }
-  };
-  card.querySelector(".r-del").onclick = async () => {
-    if (!confirm(`Spiel "${m.home} – ${m.away}" wirklich löschen? Alle Tipps dazu gehen verloren.`)) return;
-    try { await api("DELETE", `/api/matches/${m.id}`); renderManage(content); }
-    catch (e) { setHint(e.message, false); }
-  };
-  return card;
 }
 
 init();
