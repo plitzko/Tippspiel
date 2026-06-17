@@ -1,0 +1,19 @@
+# Render.com Blueprint – ein-Klick-Deployment.
+# Auf render.com: New -> Blueprint -> dieses Repo wählen.
+services:
+  - type: web
+    name: wm-tippspiel
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+    # Fuer dauerhaftes Speichern der Tipps ein Volume anlegen (bezahlter Plan):
+    #   1) unten 'disk' aktivieren
+    #   2) envVar DB_FILE = /data/db.json setzen
+    # disk:
+    #   name: data
+    #   mountPath: /data
+    #   sizeGB: 1

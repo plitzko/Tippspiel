@@ -1,0 +1,13 @@
+{
+  "name": "Linas & Maxis WM Tippspiel",
+  "short_name": "WM Tippspiel",
+  "description": "Tippt gemeinsam die Spiele der WM 2026.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

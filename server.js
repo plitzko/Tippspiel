@@ -1,0 +1,216 @@
+import express from "express";
+import crypto from "crypto";
+import path from "path";
+import { fileURLToPath } from "url";
+import { load, saveSync } from "./db.js";
+import { syncResults } from "./sync-results.js";
+import { scoreBreakdown, pointsForTip } from "./scoring.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const PORT = process.env.PORT || 3000;
+const MAX_USERS = 2; // Tippspiel fuer zwei Personen
+
+// --- Daten im Speicher, persistiert in JSON-Datei ---
+const db = load();
+function persist() { saveSync(db); }
+
+// Aktuellen Spieler aus dem Header lesen (kein Login, nur Identifikation)
+function userFromReq(req) {
+  const id = req.headers["x-user-id"];
+  if (!id) return null;
+  return db.users.find(u => u.id === id) || null;
+}
+function publicUser(u) {
+  return u ? { id: u.id, name: u.name } : null;
+}
+function requireUser(req, res, next) {
+  const user = userFromReq(req);
+  if (!user) return res.status(401).json({ error: "Kein Spieler ausgewaehlt" });
+  req.user = user;
+  next();
+}
+
+// Punkteberechnung liegt in scoring.js (von Server und Skripten gemeinsam genutzt).
+
+const isStarted = (m) => new Date(m.kickoff).getTime() <= Date.now();
+
+// --- Middleware ---
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
+// === API ===
+
+// Liste der Spieler + Punkte-Schema
+app.get("/api/status", (req, res) => {
+  res.json({
+    players: db.users.map(publicUser),
+    canAddPlayer: db.users.length < MAX_USERS,
+    points: db.config.points
+  });
+});
+
+// Neuen Spieler anlegen (nur solange < MAX_USERS)
+app.post("/api/players", (req, res) => {
+  const { name } = req.body || {};
+  if (!name || !name.trim()) return res.status(400).json({ error: "Name noetig" });
+  if (db.users.length >= MAX_USERS) return res.status(403).json({ error: "Es gibt schon zwei Spieler" });
+  if (db.users.some(u => u.name.toLowerCase() === name.trim().toLowerCase()))
+    return res.status(409).json({ error: "Name bereits vergeben" });
+  const user = { id: "u" + crypto.randomBytes(4).toString("hex"), name: name.trim() };
+  db.users.push(user);
+  persist();
+  res.json({ player: publicUser(user) });
+});
+
+// Alle Spiele inkl. eigener Tipps; Tipps des anderen erst nach Anpfiff sichtbar
+app.get("/api/matches", requireUser, (req, res) => {
+  const me = req.user.id;
+  const matches = [...db.matches].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
+  const result = matches.map(m => {
+    const started = isStarted(m);
+    const allTips = db.tips.filter(t => t.matchId === m.id);
+    const myTip = allTips.find(t => t.userId === me) || null;
+    // Tipps aller Spieler nur, wenn das Spiel begonnen hat
+    const visibleTips = db.users.map(u => {
+      const t = allTips.find(x => x.userId === u.id);
+      const reveal = started || u.id === me;
+      const bd = (reveal && t) ? scoreBreakdown(t, m, db.config) : null;
+      return {
+        userId: u.id,
+        name: u.name,
+        tip: reveal && t ? { home: t.home, away: t.away } : null,
+        hasTip: !!t,
+        points: t ? pointsForTip(t, m, db.config) : (started ? 0 : null),
+        breakdown: bd ? bd.parts : null
+      };
+    });
+    return {
+      id: m.id,
+      home: m.home,
+      away: m.away,
+      kickoff: m.kickoff,
+      stage: m.stage || "",
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+      started,
+      locked: started,
+      myTip: myTip ? { home: myTip.home, away: myTip.away } : null,
+      tips: visibleTips
+    };
+  });
+  res.json({ matches: result });
+});
+
+// Tipp abgeben/aendern (nur vor Anpfiff)
+app.post("/api/tips", requireUser, (req, res) => {
+  const { matchId, home, away } = req.body || {};
+  const match = db.matches.find(m => m.id === matchId);
+  if (!match) return res.status(404).json({ error: "Spiel nicht gefunden" });
+  if (isStarted(match)) return res.status(403).json({ error: "Spiel hat bereits begonnen" });
+  const h = Number(home), a = Number(away);
+  if (!Number.isInteger(h) || !Number.isInteger(a) || h < 0 || a < 0 || h > 99 || a > 99)
+    return res.status(400).json({ error: "Ungueltiges Ergebnis" });
+  let tip = db.tips.find(t => t.matchId === matchId && t.userId === req.user.id);
+  if (tip) { tip.home = h; tip.away = a; tip.updatedAt = Date.now(); }
+  else db.tips.push({ userId: req.user.id, matchId, home: h, away: a, createdAt: Date.now() });
+  persist();
+  res.json({ ok: true });
+});
+
+// Rangliste
+app.get("/api/standings", requireUser, (req, res) => {
+  const standings = db.users.map(u => {
+    let points = 0, exact = 0, tips = 0, finished = 0;
+    for (const m of db.matches) {
+      const t = db.tips.find(x => x.matchId === m.id && x.userId === u.id);
+      if (t) tips++;
+      const pts = t ? pointsForTip(t, m, db.config) : null;
+      if (m.homeScore != null && m.awayScore != null) {
+        finished++;
+        points += pts || 0;
+        if (t && t.home === m.homeScore && t.away === m.awayScore) exact++;
+      }
+    }
+    return { userId: u.id, name: u.name, points, exact, tips, finished };
+  }).sort((a, b) => b.points - a.points || b.exact - a.exact);
+  res.json({ standings });
+});
+
+// --- Spiele verwalten (beide Spieler duerfen das) ---
+app.post("/api/matches", requireUser, (req, res) => {
+  const { home, away, kickoff, stage } = req.body || {};
+  if (!home || !away || !kickoff) return res.status(400).json({ error: "Heim, Gast und Anpfiff noetig" });
+  if (isNaN(new Date(kickoff).getTime())) return res.status(400).json({ error: "Ungueltiges Datum" });
+  const match = {
+    id: "m" + crypto.randomBytes(4).toString("hex"),
+    home: home.trim(),
+    away: away.trim(),
+    kickoff: new Date(kickoff).toISOString(),
+    stage: (stage || "").trim(),
+    homeScore: null,
+    awayScore: null
+  };
+  db.matches.push(match);
+  persist();
+  res.json({ match });
+});
+
+app.put("/api/matches/:id", requireUser, (req, res) => {
+  const match = db.matches.find(m => m.id === req.params.id);
+  if (!match) return res.status(404).json({ error: "Spiel nicht gefunden" });
+  const { home, away, kickoff, stage } = req.body || {};
+  if (home != null) match.home = String(home).trim();
+  if (away != null) match.away = String(away).trim();
+  if (stage != null) match.stage = String(stage).trim();
+  if (kickoff != null) {
+    if (isNaN(new Date(kickoff).getTime())) return res.status(400).json({ error: "Ungueltiges Datum" });
+    match.kickoff = new Date(kickoff).toISOString();
+  }
+  persist();
+  res.json({ match });
+});
+
+// Ergebnis eintragen (null loescht das Ergebnis wieder)
+app.put("/api/matches/:id/result", requireUser, (req, res) => {
+  const match = db.matches.find(m => m.id === req.params.id);
+  if (!match) return res.status(404).json({ error: "Spiel nicht gefunden" });
+  const { homeScore, awayScore } = req.body || {};
+  if (homeScore === null || awayScore === null || homeScore === "" || awayScore === "") {
+    match.homeScore = null; match.awayScore = null;
+  } else {
+    const h = Number(homeScore), a = Number(awayScore);
+    if (!Number.isInteger(h) || !Number.isInteger(a) || h < 0 || a < 0)
+      return res.status(400).json({ error: "Ungueltiges Ergebnis" });
+    match.homeScore = h; match.awayScore = a;
+  }
+  persist();
+  res.json({ match });
+});
+
+// Echte WM-Ergebnisse automatisch vom Feed holen und eintragen
+app.post("/api/results/sync", requireUser, async (req, res) => {
+  try {
+    const stats = await syncResults(db);
+    if (stats.updated > 0) persist();
+    res.json(stats);
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+app.delete("/api/matches/:id", requireUser, (req, res) => {
+  db.matches = db.matches.filter(m => m.id !== req.params.id);
+  db.tips = db.tips.filter(t => t.matchId !== req.params.id);
+  persist();
+  res.json({ ok: true });
+});
+
+// Fallback auf die SPA
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.listen(PORT, () => {
+  console.log(`\n  WM-Tippspiel laeuft auf http://localhost:${PORT}\n`);
+});
