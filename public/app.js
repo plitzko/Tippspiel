@@ -41,6 +41,35 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<":
 const ICON_EXIT = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`;
 const chevron = (dir) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir === "left" ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}"/></svg>`;
 
+// ---- Konfetti bei exaktem Tipp (einmal je Spiel pro Sitzung) ----
+const celebrated = new Set();
+function confettiBurst(target) {
+  const colors = ["#ec4899", "#3b82f6", "#f5b301", "#34d399", "#ffffff"];
+  const rect = target.getBoundingClientRect();
+  const x0 = rect.left + rect.width / 2, y0 = rect.top + rect.height / 2.6;
+  for (let i = 0; i < 28; i++) {
+    const p = document.createElement("div");
+    p.className = "confetti-piece";
+    p.style.background = colors[i % colors.length];
+    p.style.left = x0 + "px"; p.style.top = y0 + "px";
+    document.body.appendChild(p);
+    const ang = Math.random() * Math.PI * 2, dist = 70 + Math.random() * 130;
+    const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist - 30;
+    p.animate(
+      [{ transform: "translate(0,0) rotate(0deg)", opacity: 1 },
+       { transform: `translate(${dx}px, ${dy + 180}px) rotate(${Math.random() * 720 - 360}deg)`, opacity: 0 }],
+      { duration: 900 + Math.random() * 600, easing: "cubic-bezier(.2,.6,.3,1)" }
+    ).onfinish = () => p.remove();
+  }
+}
+
+// ---- Lade-Skelett ----
+function showSkeleton(content, n = 3) {
+  content.innerHTML = "";
+  for (let i = 0; i < n; i++)
+    content.appendChild(el(`<div class="card skel-card"><span class="skel s1"></span><span class="skel s2"></span></div>`));
+}
+
 // ---- Spieler-Themen (Lina = rosa, Maxi = blau, sonst gold) ----
 const PLAYERS = {
   lina: { color: "#ec4899", contrast: "#ffffff" },
@@ -201,8 +230,8 @@ function renderApp() {
 }
 
 // ============ Tippen (Kalender nach Tagen) ============
-async function renderMatches(content) {
-  content.innerHTML = `<div class="empty">Lade Spiele…</div>`;
+async function renderMatches(content, dir = 0) {
+  if (!content.querySelector(".day-nav")) showSkeleton(content);
   let data;
   try { data = await api("GET", "/api/matches"); }
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
@@ -249,12 +278,18 @@ async function renderMatches(content) {
     const ni = idx + delta;
     if (ni < 0 || ni >= days.length) return;
     state.dayKey = days[ni];
-    renderMatches(content);
+    renderMatches(content, delta);
   };
   nav.querySelector("#day-prev").onclick = () => go(-1);
   nav.querySelector("#day-next").onclick = () => go(1);
 
-  for (const m of dayMatches) content.appendChild(matchCard(m));
+  const enterClass = dir > 0 ? "enter-right" : dir < 0 ? "enter-left" : "enter-up";
+  dayMatches.forEach((m, i) => {
+    const card = matchCard(m);
+    card.classList.add(enterClass);
+    card.style.animationDelay = (i * 45) + "ms";
+    content.appendChild(card);
+  });
 }
 
 function relDayLabel(key) {
@@ -284,7 +319,7 @@ function matchCard(m) {
   const card = el(`<div class="card match ${m.locked ? "locked" : "open"}"></div>`);
   const status = !m.locked
     ? `<span class="status">${fmtTime(m.kickoff)} Uhr</span>`
-    : (m.homeScore != null ? `<span class="status final">🔒 Endstand</span>` : `<span class="status live">🔒 läuft</span>`);
+    : (m.homeScore != null ? `<span class="status final">🔒 Endstand</span>` : `<span class="status live"><span class="live-dot"></span>LIVE</span>`);
 
   card.innerHTML = `
     <div class="match-head">
@@ -319,6 +354,13 @@ function matchCard(m) {
     const wrap = el(`<div class="tips-compare"></div>`);
     for (const t of m.tips) wrap.appendChild(tipCard(t, m));
     card.appendChild(wrap);
+
+    // Konfetti, wenn DU diesen Tipp exakt getroffen hast (einmal pro Sitzung)
+    const exactHit = m.homeScore != null && m.myTip && m.myTip.home === m.homeScore && m.myTip.away === m.awayScore;
+    if (exactHit && !celebrated.has(m.id)) {
+      celebrated.add(m.id);
+      setTimeout(() => confettiBurst(card), 350);
+    }
   }
   return card;
 }
@@ -349,12 +391,12 @@ function tipCard(t, m) {
 
 // ============ Rangliste + Punkte-Regeln ============
 async function renderStandings(content) {
-  content.innerHTML = `<div class="empty">Lade…</div>`;
-  let data;
-  try { data = await api("GET", "/api/standings"); }
+  showSkeleton(content, 2);
+  let standings, matchesData;
+  try { [standings, matchesData] = await Promise.all([api("GET", "/api/standings"), api("GET", "/api/matches")]); }
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
-
-  const s = data.standings;
+  const s = standings.standings;
+  const matches = matchesData.matches;
   content.innerHTML = "";
 
   if (s.length === 2) {
@@ -395,6 +437,87 @@ async function renderStandings(content) {
     if (!s.length) content.appendChild(el(`<div class="empty">Noch keine Spieler.</div>`));
   }
 
+  // ----- Zusatz-Statistiken aus den Spielen -----
+  const finished = matches.filter(m => m.homeScore != null);
+  if (s.length === 2 && finished.length) {
+    const ids = s.map(p => p.userId);
+    const info = {};
+    s.forEach(p => info[p.userId] = { name: p.name, color: themeFor(p.name).color, duel: 0, best: null });
+    let draws = 0;
+    const dayMap = new Map();
+    for (const m of finished) {
+      const pm = {};
+      for (const t of m.tips) {
+        if (!t.tip) continue;
+        pm[t.userId] = t.points || 0;
+        const b = info[t.userId];
+        if (b && (!b.best || (t.points || 0) > b.best.pts))
+          b.best = { pts: t.points || 0, label: `${m.home} ${m.homeScore}:${m.awayScore}`, tip: `${t.tip.home}:${t.tip.away}` };
+      }
+      if (pm[ids[0]] != null && pm[ids[1]] != null) {
+        if (pm[ids[0]] > pm[ids[1]]) info[ids[0]].duel++;
+        else if (pm[ids[1]] > pm[ids[0]]) info[ids[1]].duel++;
+        else draws++;
+      }
+      const k = dayKeyOf(m.kickoff);
+      if (!dayMap.has(k)) dayMap.set(k, {});
+      const dd = dayMap.get(k);
+      for (const id in pm) dd[id] = (dd[id] || 0) + pm[id];
+    }
+    const A = info[ids[0]], B = info[ids[1]];
+
+    // Direkte Duelle
+    content.appendChild(el(`
+      <div class="card">
+        <div class="section-title" style="margin-top:0">Direkte Duelle</div>
+        <div class="duel">
+          <div class="duel-side" style="--pc:${A.color}"><span class="duel-num">${A.duel}</span><span class="duel-name">${esc(A.name)}</span></div>
+          <div class="duel-mid">:</div>
+          <div class="duel-side" style="--pc:${B.color}"><span class="duel-num">${B.duel}</span><span class="duel-name">${esc(B.name)}</span></div>
+        </div>
+        <div class="duel-foot">${draws}× Gleichstand · ${finished.length} Spiele gewertet</div>
+      </div>`));
+
+    // Beste Tipps
+    const bestRow = (p) => {
+      const b = info[p.userId].best, c = info[p.userId].color;
+      return `<div class="best-row">
+        <span class="best-name"><span class="dot" style="background:${c}"></span>${esc(p.name)}</span>
+        ${b ? `<span class="best-info"><b style="color:${c}">${b.pts} P.</b> · ${esc(b.label)} <span class="muted">(Tipp ${esc(b.tip)})</span></span>` : `<span class="muted">noch nichts</span>`}
+      </div>`;
+    };
+    content.appendChild(el(`
+      <div class="card">
+        <div class="section-title" style="margin-top:0">Beste Tipps</div>
+        ${bestRow(s[0])}${bestRow(s[1])}
+      </div>`));
+
+    // Punkte-Verlauf (Sparkline)
+    const days = [...dayMap.keys()].sort();
+    if (days.length >= 2) {
+      const cum = {}, series = {};
+      ids.forEach(id => { cum[id] = 0; series[id] = []; });
+      for (const k of days) { const dd = dayMap.get(k); ids.forEach(id => { cum[id] += dd[id] || 0; series[id].push(cum[id]); }); }
+      const maxV = Math.max(1, ...ids.map(id => series[id][series[id].length - 1]));
+      const W = 300, H = 80, pad = 8;
+      const x = i => pad + (W - 2 * pad) * (i / (days.length - 1));
+      const y = v => H - pad - (H - 2 * pad) * (v / maxV);
+      const poly = id => series[id].map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+      content.appendChild(el(`
+        <div class="card">
+          <div class="section-title" style="margin-top:0">Punkte-Verlauf</div>
+          <svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+            <polyline points="${poly(ids[0])}" fill="none" stroke="${A.color}" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+            <polyline points="${poly(ids[1])}" fill="none" stroke="${B.color}" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          <div class="spark-legend">
+            <span><span class="dot" style="background:${A.color}"></span>${esc(A.name)}</span>
+            <span><span class="dot" style="background:${B.color}"></span>${esc(B.name)}</span>
+          </div>
+        </div>`));
+    }
+  }
+
   // Punkte-Regeln
   const p = state.points;
   const exact = p.winner + p.difference + 2 * p.goalPerTeam;
@@ -413,7 +536,7 @@ async function renderStandings(content) {
 
 // ============ Ergebnisse aktualisieren ============
 async function renderResults(content) {
-  content.innerHTML = `<div class="empty">Lade…</div>`;
+  showSkeleton(content, 1);
   let data;
   try { data = await api("GET", "/api/matches"); }
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }

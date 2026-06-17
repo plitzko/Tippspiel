@@ -263,3 +263,53 @@ body {
 @media (hover: hover) {
   .icon-btn:hover, .day-arrow:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 }
+
+/* ---------- Einblend-Animationen ---------- */
+@keyframes cardUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes cardRight { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes cardLeft { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+.enter-up { animation: cardUp .34s ease both; }
+.enter-right { animation: cardRight .3s ease both; }
+.enter-left { animation: cardLeft .3s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .enter-up, .enter-right, .enter-left { animation: none !important; }
+  .live-dot { animation: none !important; }
+}
+
+/* ---------- Konfetti ---------- */
+.confetti-piece { position: fixed; width: 9px; height: 9px; border-radius: 2px; pointer-events: none; z-index: 9999; will-change: transform, opacity; }
+
+/* ---------- Lade-Skelett ---------- */
+.skel { display: block; border-radius: 9px; background: linear-gradient(90deg, var(--soft), color-mix(in srgb, var(--accent) 16%, var(--soft)), var(--soft)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+.skel-card .s1 { height: 14px; width: 42%; margin-bottom: 14px; }
+.skel-card .s2 { height: 48px; width: 100%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ---------- LIVE-Markierung ---------- */
+.status.live { color: var(--red); font-weight: 800; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: inline-block; margin-right: 6px; vertical-align: middle; animation: pulse 1.4s infinite; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 70%, transparent); }
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* ---------- Direkte Duelle ---------- */
+.duel { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 6px 0 2px; }
+.duel-side { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.duel-num { font-size: 42px; font-weight: 900; color: var(--pc); line-height: 1; letter-spacing: -1px; }
+.duel-name { font-size: 12px; font-weight: 700; color: var(--muted); }
+.duel-mid { font-size: 26px; font-weight: 800; color: var(--muted-2); }
+.duel-foot { text-align: center; font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+/* ---------- Beste Tipps ---------- */
+.best-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+.best-row:last-child { border-bottom: none; }
+.best-name { display: flex; align-items: center; gap: 7px; font-weight: 700; flex: none; }
+.best-info { text-align: right; }
+.best-name .dot, .spark-legend .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+
+/* ---------- Punkte-Verlauf ---------- */
+.spark { width: 100%; height: 80px; display: block; margin: 4px 0 8px; }
+.spark-legend { display: flex; gap: 18px; justify-content: center; font-size: 12px; color: var(--muted); font-weight: 600; }
+.spark-legend span { display: flex; align-items: center; gap: 6px; }
