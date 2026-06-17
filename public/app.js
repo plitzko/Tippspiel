@@ -549,7 +549,7 @@ async function renderResults(content) {
     <div class="card sync-card">
       <div class="sync-icon">🔄</div>
       <h2 class="sync-title">Ergebnisse aktualisieren</h2>
-      <p class="muted sync-desc">Holt die echten WM-Ergebnisse aus dem offiziellen Spielplan und berechnet die Punkte neu.</p>
+      <p class="muted sync-desc">Läuft <b>automatisch</b> – Ergebnisse werden nach jedem Spiel von selbst geholt und die Punkte neu berechnet. Hier kannst du jederzeit manuell nachhelfen.</p>
       <div class="sync-stat"><b>${finished}</b> von ${total} Spielen ausgewertet</div>
       <button class="btn" id="sync-btn">Jetzt aktualisieren</button>
       <div class="save-hint" id="sync-hint"></div>

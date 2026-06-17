@@ -214,3 +214,29 @@ app.get("*", (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n  WM-Tippspiel laeuft auf http://localhost:${PORT}\n`);
 });
+
+// --- Automatischer Ergebnis-Abruf ---
+// Solange es angepfiffene Spiele ohne Ergebnis gibt, regelmaessig den Feed
+// abfragen. So tauchen Resultate kurz nach Spielende von selbst auf.
+const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MIN || 20) * 60 * 1000;
+
+async function autoSync(reason) {
+  try {
+    const stats = await syncResults(db);
+    if (stats.updated > 0) {
+      persist();
+      console.log(`[auto-sync/${reason}] ${stats.updated} Ergebnis(se) aktualisiert`);
+    }
+  } catch (e) {
+    console.warn(`[auto-sync/${reason}] fehlgeschlagen: ${e.message}`);
+  }
+}
+
+// Gibt es bereits begonnene Spiele, die noch kein Ergebnis haben?
+function hasPendingResults() {
+  const now = Date.now();
+  return db.matches.some(m => m.homeScore == null && new Date(m.kickoff).getTime() <= now);
+}
+
+autoSync("startup");
+setInterval(() => { if (hasPendingResults()) autoSync("interval"); }, SYNC_INTERVAL_MS);
