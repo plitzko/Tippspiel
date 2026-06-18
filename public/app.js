@@ -55,8 +55,7 @@ async function livePoll() {
   const content = document.getElementById("content");
   if (!content) return;
   if (state.tab === "tippen") renderMatches(content);
-  else if (state.tab === "rangliste") renderStandings(content);
-  else if (state.tab === "ergebnisse") renderResults(content);
+  else renderStandings(content);
 }
 
 const ICON_EXIT = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`;
@@ -93,10 +92,76 @@ function showSkeleton(content, n = 3) {
 
 // ---- Spieler-Themen (Lina = rosa, Maxi = blau, sonst gold) ----
 const PLAYERS = {
-  lina: { color: "#ec4899", contrast: "#ffffff" },
-  maxi: { color: "#3b82f6", contrast: "#ffffff" },
+  lina: { color: "#ec4899", contrast: "#ffffff", emoji: "🧸" },
+  maxi: { color: "#3b82f6", contrast: "#ffffff", emoji: "🤖" },
 };
-const themeFor = (name) => PLAYERS[(name || "").toLowerCase()] || { color: "#f5b301", contrast: "#1a1300" };
+const themeFor = (name) => PLAYERS[(name || "").toLowerCase()] || { color: "#f5b301", contrast: "#1a1300", emoji: "⚽" };
+const isLina = (name) => (name || "").toLowerCase() === "lina";
+const isMaxi = (name) => (name || "").toLowerCase() === "maxi";
+const reducedMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---- Easter-Eggs: Blütenregen, winkender Bär, Terminator ----
+function rainEmojis(list, count, duration = 2200) {
+  for (let i = 0; i < count; i++) {
+    const e = document.createElement("div");
+    e.className = "emoji-fall";
+    e.textContent = list[i % list.length];
+    e.style.left = (Math.random() * 100) + "vw";
+    e.style.fontSize = (20 + Math.random() * 22) + "px";
+    document.body.appendChild(e);
+    const dur = duration * (0.7 + Math.random() * 0.6);
+    e.animate(
+      [{ transform: "translateY(-12vh) rotate(0deg)", opacity: 0 },
+       { transform: "translateY(-2vh) rotate(15deg)", opacity: 1, offset: 0.12 },
+       { transform: `translateY(110vh) rotate(${Math.random() * 720 - 360}deg)`, opacity: 1 }],
+      { duration: dur, easing: "linear" }
+    ).onfinish = () => e.remove();
+  }
+}
+function wavingBearCorner() {
+  const b = el(`<div class="corner-bear">🐻</div>`);
+  document.body.appendChild(b);
+  b.animate(
+    [{ transform: "translateY(130%) rotate(0)" },
+     { transform: "translateY(0) rotate(0)", offset: 0.2 },
+     { transform: "translateY(0) rotate(14deg)", offset: 0.4 },
+     { transform: "translateY(0) rotate(-8deg)", offset: 0.6 },
+     { transform: "translateY(0) rotate(12deg)", offset: 0.8 },
+     { transform: "translateY(130%) rotate(0)" }],
+    { duration: 2800, easing: "ease-in-out" }
+  ).onfinish = () => b.remove();
+}
+function redFlash() {
+  const f = el(`<div class="red-flash">🤖</div>`);
+  document.body.appendChild(f);
+  f.animate([{ opacity: 0 }, { opacity: 0.92, offset: 0.18 }, { opacity: 0 }], { duration: 950 }).onfinish = () => f.remove();
+}
+// kleiner Gag beim Tippen aufs Logo
+function easterEgg(name) {
+  if (reducedMotion()) return;
+  if (isLina(name)) { rainEmojis(["🌹", "🌸", "💮", "🌷"], 16, 1900); wavingBearCorner(); }
+  else if (isMaxi(name)) { redFlash(); }
+  else confettiBurst(document.querySelector(".logo") || document.body);
+}
+// große Begrüßungs-Animation beim Login
+function playIntro(name) {
+  return new Promise((resolve) => {
+    if (reducedMotion() || (!isLina(name) && !isMaxi(name))) return resolve();
+    const t = themeFor(name);
+    const ov = el(`<div class="intro" style="--pc:${t.color}"></div>`);
+    if (isLina(name)) {
+      ov.classList.add("intro-lina");
+      ov.innerHTML = `<div class="intro-bear">🐻</div><div class="intro-text">Hallo Lina! 🌹</div>`;
+      document.body.appendChild(ov);
+      rainEmojis(["🌸", "🌹", "💮", "🌷", "🐻‍❄️"], 30, 2400);
+    } else {
+      ov.classList.add("intro-maxi");
+      ov.innerHTML = `<div class="intro-scan"></div><div class="intro-bot">🤖</div><div class="intro-text glitch">Systeme online, Maxi. 🦾</div>`;
+      document.body.appendChild(ov);
+    }
+    setTimeout(() => { ov.classList.add("intro-out"); setTimeout(() => { ov.remove(); resolve(); }, 350); }, 1500);
+  });
+}
 function hexA(hex, a) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
@@ -182,14 +247,20 @@ function renderPlayerSelect(status) {
 
   const list = view.querySelector("#ps-players");
   for (const p of status.players) {
-    const color = themeFor(p.name).color;
+    const th = themeFor(p.name);
+    const flair = isLina(p.name) ? "🌹" : isMaxi(p.name) ? "🦾" : "";
     const b = el(`
-      <button class="player-pick" style="--pc:${color}">
-        <span class="pavatar">${esc((p.name[0] || "?").toUpperCase())}</span>
-        <span>${esc(p.name)}</span>
+      <button class="player-pick" style="--pc:${th.color}">
+        <span class="pavatar">${th.emoji}</span>
+        <span class="pick-name">${esc(p.name)}</span>
+        <span class="pick-flair">${flair}</span>
         <span class="arrow">→</span>
       </button>`);
-    b.onclick = () => { setUser(p); state.tab = "tippen"; state.dayKey = null; renderApp(); };
+    b.onclick = async () => {
+      setUser(p); state.tab = "tippen"; state.dayKey = null;
+      await playIntro(p.name);
+      renderApp();
+    };
     list.appendChild(b);
   }
 
@@ -207,7 +278,7 @@ function renderPlayerSelect(status) {
       const err = view.querySelector("#ps-err");
       err.textContent = "";
       if (!name) { err.textContent = "Bitte einen Namen eingeben."; return; }
-      try { const data = await api("POST", "/api/players", { name }); setUser(data.player); state.tab = "tippen"; renderApp(); }
+      try { const data = await api("POST", "/api/players", { name }); setUser(data.player); state.tab = "tippen"; await playIntro(name); renderApp(); }
       catch (e) { err.textContent = e.message; }
     };
     form.querySelector("#ps-create").onclick = create;
@@ -218,14 +289,15 @@ function renderPlayerSelect(status) {
 // ============ Haupt-App ============
 function renderApp() {
   applyTheme(state.user.name);
-  const tabs = [["tippen", "⚽ Tippen"], ["rangliste", "🏆 Rangliste"], ["ergebnisse", "🔄 Ergebnisse"]];
+  if (state.tab === "ergebnisse") state.tab = "rangliste";
+  const tabs = [["tippen", "⚽ Tippen"], ["rangliste", "🏆 Rangliste"]];
 
   const view = el(`
     <div>
       <div class="topbar">
         <div class="brand">
-          <span class="logo">⚽</span>
-          <div class="brand-text"><h1>${TITLE}</h1><small>Hi, <b style="color:var(--accent)">${esc(state.user.name)}</b></small></div>
+          <span class="logo" id="logo" title="✨">⚽</span>
+          <div class="brand-text"><h1>${TITLE}</h1><small>WM 2026</small></div>
         </div>
         <button class="icon-btn" id="switch" title="Spieler wechseln" aria-label="Spieler wechseln">${ICON_EXIT}</button>
       </div>
@@ -243,11 +315,11 @@ function renderApp() {
     tabsEl.appendChild(b);
   }
   view.querySelector("#switch").onclick = () => { setUser(null); init(); };
+  view.querySelector("#logo").onclick = () => easterEgg(state.user.name);
 
   const content = view.querySelector("#content");
   if (state.tab === "tippen") renderMatches(content);
-  else if (state.tab === "rangliste") renderStandings(content);
-  else if (state.tab === "ergebnisse") renderResults(content);
+  else renderStandings(content);
 }
 
 // ============ Tippen (Kalender nach Tagen) ============
@@ -422,6 +494,20 @@ async function renderStandings(content) {
   liveSig = resultsSignature(matches);
   content.innerHTML = "";
 
+  // Aktualisieren-Leiste (Ergebnisse kommen automatisch, hier manuell nachhelfen)
+  const syncBar = el(`
+    <div class="sync-bar">
+      <span class="muted">Aktualisiert sich automatisch</span>
+      <button class="btn small secondary" id="sync-btn">🔄 Aktualisieren</button>
+    </div>`);
+  content.appendChild(syncBar);
+  syncBar.querySelector("#sync-btn").onclick = async (ev) => {
+    const btn = ev.currentTarget;
+    btn.disabled = true; btn.textContent = "⏳ …";
+    try { await api("POST", "/api/results/sync"); renderStandings(content); }
+    catch (e) { btn.disabled = false; btn.textContent = "🔄 Aktualisieren"; }
+  };
+
   if (s.length === 2) {
     const [a, b] = s;
     const diff = a.points - b.points;
@@ -465,7 +551,7 @@ async function renderStandings(content) {
   if (s.length === 2 && finished.length) {
     const ids = s.map(p => p.userId);
     const info = {};
-    s.forEach(p => info[p.userId] = { name: p.name, color: themeFor(p.name).color, duel: 0, best: null });
+    s.forEach(p => info[p.userId] = { name: p.name, color: themeFor(p.name).color, duel: 0, best: null, tipped: 0, tendency: 0, diffc: 0, exact: 0, seq: [] });
     let draws = 0;
     const dayMap = new Map();
     for (const m of finished) {
@@ -474,8 +560,15 @@ async function renderStandings(content) {
         if (!t.tip) continue;
         pm[t.userId] = t.points || 0;
         const b = info[t.userId];
-        if (b && (!b.best || (t.points || 0) > b.best.pts))
+        if (!b) continue;
+        if (!b.best || (t.points || 0) > b.best.pts)
           b.best = { pts: t.points || 0, label: `${m.home} ${m.homeScore}:${m.awayScore}`, tip: `${t.tip.home}:${t.tip.away}` };
+        const td = t.tip.home - t.tip.away, rd = m.homeScore - m.awayScore;
+        b.tipped++;
+        if (Math.sign(td) === Math.sign(rd)) b.tendency++;
+        if (td === rd) b.diffc++;
+        if (t.tip.home === m.homeScore && t.tip.away === m.awayScore) b.exact++;
+        b.seq.push(t.points || 0);
       }
       if (pm[ids[0]] != null && pm[ids[1]] != null) {
         if (pm[ids[0]] > pm[ids[1]]) info[ids[0]].duel++;
@@ -513,6 +606,54 @@ async function renderStandings(content) {
       <div class="card">
         <div class="section-title" style="margin-top:0">Beste Tipps</div>
         ${bestRow(s[0])}${bestRow(s[1])}
+      </div>`));
+
+    // Bester Tag + längster Lauf je Spieler
+    for (const id of ids) {
+      const b = info[id];
+      b.bestDay = 0;
+      for (const dd of dayMap.values()) b.bestDay = Math.max(b.bestDay, dd[id] || 0);
+      let run = 0; b.run = 0;
+      for (const v of b.seq) { if (v > 0) { run++; b.run = Math.max(b.run, run); } else run = 0; }
+    }
+
+    // Form (letzte 5 Spiele)
+    const formRow = (p) => {
+      const b = info[p.userId];
+      const last = b.seq.slice(-5);
+      const cells = last.length ? last.map(v => `<span class="pill ${v > 0 ? "hit" : "miss"}">${v}</span>`).join("") : `<span class="muted">noch keine</span>`;
+      return `<div class="form-row"><span class="best-name"><span class="dot" style="background:${b.color}"></span>${esc(p.name)}</span><span class="form-pills" style="--pc:${b.color}">${cells}</span></div>`;
+    };
+    content.appendChild(el(`
+      <div class="card">
+        <div class="section-title" style="margin-top:0">Form – letzte 5 Spiele</div>
+        ${formRow(s[0])}${formRow(s[1])}
+      </div>`));
+
+    // Trefferquote (in % der abgegebenen Tipps)
+    const pct = (x, n) => n ? Math.round(x / n * 100) + "%" : "–";
+    const quotaRow = (p) => {
+      const b = info[p.userId];
+      return `<div class="quota-row"><span class="best-name"><span class="dot" style="background:${b.color}"></span>${esc(p.name)}</span><span>${pct(b.tendency, b.tipped)}</span><span>${pct(b.diffc, b.tipped)}</span><span>${pct(b.exact, b.tipped)}</span></div>`;
+    };
+    content.appendChild(el(`
+      <div class="card">
+        <div class="section-title" style="margin-top:0">Trefferquote</div>
+        <div class="quota">
+          <div class="quota-row quota-head"><span></span><span>Tendenz</span><span>Differ.</span><span>Exakt</span></div>
+          ${quotaRow(s[0])}${quotaRow(s[1])}
+        </div>
+      </div>`));
+
+    // Rekorde
+    const recRow = (p) => {
+      const b = info[p.userId];
+      return `<div class="best-row"><span class="best-name"><span class="dot" style="background:${b.color}"></span>${esc(p.name)}</span><span class="best-info"><span class="muted">Bester Tag</span> <b style="color:${b.color}">${b.bestDay}</b> · <span class="muted">Lauf</span> <b style="color:${b.color}">${b.run}</b></span></div>`;
+    };
+    content.appendChild(el(`
+      <div class="card">
+        <div class="section-title" style="margin-top:0">Rekorde</div>
+        ${recRow(s[0])}${recRow(s[1])}
       </div>`));
 
     // Punkte-Verlauf (Sparkline)
@@ -555,48 +696,6 @@ async function renderStandings(content) {
       </ul>
       <div class="rules-foot">Tipp komplett richtig = <b>${exact} Punkte</b></div>
     </div>`));
-}
-
-// ============ Ergebnisse aktualisieren ============
-async function renderResults(content) {
-  showSkeleton(content, 1);
-  let data;
-  try { data = await api("GET", "/api/matches"); }
-  catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
-
-  liveSig = resultsSignature(data.matches);
-  const finished = data.matches.filter(m => m.homeScore != null).length;
-  const total = data.matches.length;
-
-  content.innerHTML = "";
-  const card = el(`
-    <div class="card sync-card">
-      <div class="sync-icon">🔄</div>
-      <h2 class="sync-title">Ergebnisse aktualisieren</h2>
-      <p class="muted sync-desc">Läuft <b>automatisch</b> – Ergebnisse werden nach jedem Spiel von selbst geholt und die Punkte neu berechnet. Hier kannst du jederzeit manuell nachhelfen.</p>
-      <div class="sync-stat"><b>${finished}</b> von ${total} Spielen ausgewertet</div>
-      <button class="btn" id="sync-btn">Jetzt aktualisieren</button>
-      <div class="save-hint" id="sync-hint"></div>
-    </div>
-  `);
-  content.appendChild(card);
-
-  const btn = card.querySelector("#sync-btn");
-  const hint = card.querySelector("#sync-hint");
-  btn.onclick = async () => {
-    btn.disabled = true; btn.textContent = "⏳ Hole Ergebnisse…"; hint.textContent = ""; hint.classList.remove("ok");
-    try {
-      const r = await api("POST", "/api/results/sync");
-      hint.textContent = r.updated > 0
-        ? `✓ ${r.updated} Ergebnis(se) aktualisiert.`
-        : `Alles aktuell – keine neuen Ergebnisse.`;
-      hint.classList.add("ok");
-      setTimeout(() => renderResults(content), 1100);
-    } catch (e) {
-      hint.textContent = "Fehler: " + e.message;
-      btn.disabled = false; btn.textContent = "Jetzt aktualisieren";
-    }
-  };
 }
 
 init();
