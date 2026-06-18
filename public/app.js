@@ -381,6 +381,8 @@ async function renderMatches(content, dir = 0) {
   const dayMatches = byDay.get(state.dayKey);
 
   content.innerHTML = "";
+  const dayView = el(`<div class="day-view"></div>`);
+  content.appendChild(dayView);
 
   // Tages-Navigation
   const d = new Date(state.dayKey + "T12:00:00");
@@ -397,7 +399,7 @@ async function renderMatches(content, dir = 0) {
       <button class="day-arrow" id="day-next" ${idx >= days.length - 1 ? "disabled" : ""} aria-label="Nächster Tag">${chevron("right")}</button>
     </div>
   `);
-  content.appendChild(nav);
+  dayView.appendChild(nav);
   const go = (delta) => {
     const ni = idx + delta;
     if (ni < 0 || ni >= days.length) return;
@@ -407,12 +409,24 @@ async function renderMatches(content, dir = 0) {
   nav.querySelector("#day-prev").onclick = () => go(-1);
   nav.querySelector("#day-next").onclick = () => go(1);
 
+  // Wischen zwischen Tagen (links = nächster, rechts = vorheriger Tag)
+  let sx = 0, sy = 0, tracking = false;
+  dayView.addEventListener("touchstart", (e) => {
+    const t = e.touches[0]; sx = t.clientX; sy = t.clientY; tracking = true;
+  }, { passive: true });
+  dayView.addEventListener("touchend", (e) => {
+    if (!tracking) return; tracking = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4) go(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
   const enterClass = dir > 0 ? "enter-right" : dir < 0 ? "enter-left" : "enter-up";
   dayMatches.forEach((m, i) => {
     const card = matchCard(m);
     card.classList.add(enterClass);
     card.style.animationDelay = (i * 45) + "ms";
-    content.appendChild(card);
+    dayView.appendChild(card);
   });
 }
 
@@ -426,12 +440,20 @@ function relDayLabel(key) {
   return null;
 }
 
+function stepperHtml(cls, val, team) {
+  return `<div class="stepper">
+      <button type="button" class="step" data-dir="up" aria-label="${esc(team)}: ein Tor mehr">+</button>
+      <input type="number" min="0" max="99" inputmode="numeric" class="${cls}" value="${val}" aria-label="Tore ${esc(team)}"/>
+      <button type="button" class="step" data-dir="down" aria-label="${esc(team)}: ein Tor weniger">−</button>
+    </div>`;
+}
+
 function centerHtml(m) {
   if (!m.locked) {
     return `<div class="score-input">
-        <input type="number" min="0" max="99" class="in-home" value="${m.myTip ? m.myTip.home : ""}" aria-label="Tore ${esc(m.home)}"/>
+        ${stepperHtml("in-home", m.myTip ? m.myTip.home : "", m.home)}
         <i>:</i>
-        <input type="number" min="0" max="99" class="in-away" value="${m.myTip ? m.myTip.away : ""}" aria-label="Tore ${esc(m.away)}"/>
+        ${stepperHtml("in-away", m.myTip ? m.myTip.away : "", m.away)}
       </div>`;
   }
   if (m.homeScore != null)
@@ -472,6 +494,21 @@ function matchCard(m) {
         timer = setTimeout(() => { hint.textContent = "Dein Tipp wird automatisch gespeichert"; hint.classList.remove("ok"); }, 1800);
       } catch (e) { hint.textContent = e.message; hint.classList.remove("ok"); }
     };
+    // +/- Stepper
+    card.querySelectorAll(".stepper").forEach(st => {
+      const input = st.querySelector("input");
+      st.querySelectorAll(".step").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const cur = input.value === "" ? 0 : parseInt(input.value, 10) || 0;
+          input.value = btn.dataset.dir === "up" ? Math.min(99, cur + 1) : Math.max(0, cur - 1);
+          saveTip();
+        });
+      });
+    });
+    // Auto-Sprung Heim -> Gast nach erster Ziffer
+    ih.addEventListener("input", () => {
+      if (ih.value.length >= 1 && ia.value === "") { ia.focus(); ia.select && ia.select(); }
+    });
     ih.addEventListener("change", saveTip);
     ia.addEventListener("change", saveTip);
   } else {
