@@ -535,7 +535,16 @@ function matchCard(m) {
     ia.addEventListener("change", saveTip);
   } else {
     const wrap = el(`<div class="tips-compare"></div>`);
-    for (const t of m.tips) wrap.appendChild(tipCard(t, m));
+    const sortedTips = [...m.tips].sort((a, b) => {
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      if (nameA === "lina" && nameB !== "lina") return -1;
+      if (nameB === "lina" && nameA !== "lina") return 1;
+      if (nameA === "maxi" && nameB !== "maxi") return -1;
+      if (nameB === "maxi" && nameA !== "maxi") return 1;
+      return 0;
+    });
+    for (const t of sortedTips) wrap.appendChild(tipCard(t, m));
     card.appendChild(wrap);
 
     // Konfetti, wenn DU diesen Tipp exakt getroffen hast (einmal pro Sitzung)
@@ -578,7 +587,16 @@ async function renderStandings(content) {
   let standings, matchesData;
   try { [standings, matchesData] = await Promise.all([api("GET", "/api/standings"), api("GET", "/api/matches")]); }
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
-  const s = standings.standings;
+  const s = standings.standings; // Nach Punkten sortiert für die Ränge
+  const displayOrder = [...s].sort((a, b) => {
+    const nameA = (a.name || "").toLowerCase();
+    const nameB = (b.name || "").toLowerCase();
+    if (nameA === "lina" && nameB !== "lina") return -1;
+    if (nameB === "lina" && nameA !== "lina") return 1;
+    if (nameA === "maxi" && nameB !== "maxi") return -1;
+    if (nameB === "maxi" && nameA !== "maxi") return 1;
+    return 0;
+  });
   const matches = matchesData.matches;
   liveSig = resultsSignature(matches);
   content.innerHTML = "";
@@ -598,13 +616,17 @@ async function renderStandings(content) {
   };
 
   if (s.length === 2) {
-    const [a, b] = s;
-    const diff = a.points - b.points;
-    const tie = diff === 0;
-    const lead = tie ? "Gleichstand! 🤝 Jeder Tipp zählt." : `<b>${esc(a.name)}</b> führt mit ${diff} Punkt${diff === 1 ? "" : "en"}.`;
-    const sbCard = (p, rank, isLeader) => {
+    const [p1, p2] = displayOrder;
+    const leader = s[0];
+    const diff = s[0].points - s[1].points;
+    const tie = s[0].points === s[1].points;
+    const lead = tie ? "Gleichstand! 🤝 Jeder Tipp zählt." : `<b>${esc(leader.name)}</b> führt mit ${diff} Punkt${diff === 1 ? "" : "en"}.`;
+    
+    const sbCard = (p) => {
       const color = themeFor(p.name).color;
       const me = p.userId === state.user.id;
+      const isLeader = !tie && p.userId === leader.userId;
+      const rank = tie ? "🤝" : (isLeader ? "🥇" : "🥈");
       return `
         <div class="sb-card ${isLeader ? "leader" : ""}" style="--pc:${color}">
           <div class="sb-rank">${rank}</div>
@@ -616,9 +638,9 @@ async function renderStandings(content) {
     };
     content.appendChild(el(`
       <div class="scoreboard">
-        ${sbCard(a, tie ? "🤝" : "🥇", !tie)}
+        ${sbCard(p1)}
         <div class="sb-mid"><div class="sb-vs">VS</div></div>
-        ${sbCard(b, tie ? "🤝" : "🥈", false)}
+        ${sbCard(p2)}
       </div>`));
     content.appendChild(el(`<div class="lead-msg">${lead}</div>`));
   } else {
@@ -638,7 +660,7 @@ async function renderStandings(content) {
   // ----- Zusatz-Statistiken aus den Spielen -----
   const finished = matches.filter(m => m.homeScore != null);
   if (s.length === 2 && finished.length) {
-    const ids = s.map(p => p.userId);
+    const ids = displayOrder.map(p => p.userId);
     const info = {};
     s.forEach(p => info[p.userId] = { name: p.name, color: themeFor(p.name).color, duel: 0, best: null, tipped: 0, tendency: 0, diffc: 0, exact: 0, seq: [] });
     let draws = 0;
@@ -694,7 +716,7 @@ async function renderStandings(content) {
     content.appendChild(el(`
       <div class="card">
         <div class="section-title" style="margin-top:0">Beste Tipps</div>
-        ${bestRow(s[0])}${bestRow(s[1])}
+        ${bestRow(displayOrder[0])}${bestRow(displayOrder[1])}
       </div>`));
 
     // Bester Tag + längster Lauf je Spieler
@@ -716,7 +738,7 @@ async function renderStandings(content) {
     content.appendChild(el(`
       <div class="card">
         <div class="section-title" style="margin-top:0">Form – letzte 5 Spiele</div>
-        ${formRow(s[0])}${formRow(s[1])}
+        ${formRow(displayOrder[0])}${formRow(displayOrder[1])}
       </div>`));
 
     // Trefferquote (in % der abgegebenen Tipps)
@@ -730,7 +752,7 @@ async function renderStandings(content) {
         <div class="section-title" style="margin-top:0">Trefferquote</div>
         <div class="quota">
           <div class="quota-row quota-head"><span></span><span>Tendenz</span><span>Differ.</span><span>Exakt</span></div>
-          ${quotaRow(s[0])}${quotaRow(s[1])}
+          ${quotaRow(displayOrder[0])}${quotaRow(displayOrder[1])}
         </div>
       </div>`));
 
@@ -742,7 +764,7 @@ async function renderStandings(content) {
     content.appendChild(el(`
       <div class="card">
         <div class="section-title" style="margin-top:0">Rekorde</div>
-        ${recRow(s[0])}${recRow(s[1])}
+        ${recRow(displayOrder[0])}${recRow(displayOrder[1])}
       </div>`));
 
     // Punkte-Verlauf (Sparkline)
