@@ -212,8 +212,8 @@ function applyTheme(name) {
   const r = document.documentElement.style;
   r.setProperty("--accent", t.color);
   r.setProperty("--accent-contrast", t.contrast);
-  r.setProperty("--accent-weak", hexA(t.color, 0.16));
-  r.setProperty("--accent-glow", hexA(t.color, 0.4));
+  r.setProperty("--accent-weak", hexA(t.color, 0.12));
+  r.setProperty("--accent-glow", hexA(t.color, 0.22));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", name ? darken(t.color, 0.55) : "#0a0e1a");
 }
