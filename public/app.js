@@ -81,24 +81,18 @@ const ICON_BEAR = `
 </svg>`;
 const ICON_TERM = `
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="ic-term">
-  <line x1="50" y1="16" x2="50" y2="6" stroke="#9aa0ad" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="50" cy="5" r="3.6" fill="#ff3a3a"/>
-  <rect x="14" y="38" width="9" height="20" rx="4" fill="#7b8290"/>
-  <rect x="77" y="38" width="9" height="20" rx="4" fill="#7b8290"/>
-  <rect x="20" y="19" width="60" height="58" rx="18" fill="#cdd2dc"/>
-  <rect x="20" y="19" width="60" height="28" rx="18" fill="#eef1f6" opacity="0.55"/>
-  <rect x="28" y="35" width="44" height="21" rx="10.5" fill="#0c0d12"/>
-  <circle cx="40" cy="45.5" r="5.4" fill="#ff2a2a"/>
-  <circle cx="60" cy="45.5" r="5.4" fill="#ff2a2a"/>
-  <circle cx="40" cy="44" r="2" fill="#ffe0e0"/>
-  <circle cx="60" cy="44" r="2" fill="#ffe0e0"/>
-  <rect x="34" y="62" width="32" height="10" rx="3.5" fill="#2a2e38"/>
-  <g stroke="#7b8290" stroke-width="1.7">
-    <line x1="41" y1="62" x2="41" y2="72"/>
-    <line x1="47" y1="62" x2="47" y2="72"/>
-    <line x1="53" y1="62" x2="53" y2="72"/>
-    <line x1="59" y1="62" x2="59" y2="72"/>
-  </g>
+  <line x1="50" y1="15" x2="50" y2="5" stroke="#9aa0ad" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="50" cy="4.5" r="3.8" fill="#5fd9ff"/>
+  <rect x="14" y="40" width="9" height="20" rx="4.5" fill="#7b8290"/>
+  <rect x="77" y="40" width="9" height="20" rx="4.5" fill="#7b8290"/>
+  <rect x="19" y="20" width="62" height="60" rx="24" fill="#cdd2dc"/>
+  <rect x="19" y="20" width="62" height="30" rx="24" fill="#eef1f6" opacity="0.55"/>
+  <rect x="27" y="36" width="46" height="26" rx="13" fill="#10212c"/>
+  <circle cx="40" cy="49" r="6.6" fill="#5fd9ff"/>
+  <circle cx="60" cy="49" r="6.6" fill="#5fd9ff"/>
+  <circle cx="42.2" cy="46.8" r="2.3" fill="#eafaff"/>
+  <circle cx="62.2" cy="46.8" r="2.3" fill="#eafaff"/>
+  <path d="M42 69 Q50 75 58 69" stroke="#8b92a3" stroke-width="3.2" fill="none" stroke-linecap="round"/>
 </svg>`;
 const playerIcon = (name) => isLina(name) ? ICON_BEAR : isMaxi(name) ? ICON_TERM : "⚽";
 
@@ -196,7 +190,7 @@ function playIntro(name) {
       document.body.appendChild(ov);
     } else {
       ov.classList.add("intro-maxi");
-      ov.innerHTML = `<div class="intro-scan"></div><div class="intro-bot">${ICON_TERM}</div><div class="intro-text glitch">Systeme online, Maxi.</div>`;
+      ov.innerHTML = `<div class="intro-scan"></div><div class="intro-bot">${ICON_TERM}</div><div class="intro-text">Hallo Maxi!</div>`;
       document.body.appendChild(ov);
     }
     setTimeout(() => { ov.classList.add("intro-out"); setTimeout(() => { ov.remove(); resolve(); }, 350); }, 1500);
