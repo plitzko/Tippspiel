@@ -239,10 +239,8 @@ function flagHtml(name) {
   return `<img class="flag" src="https://flagcdn.com/w40/${code}.png" srcset="https://flagcdn.com/w80/${code}.png 2x" loading="lazy" alt="" onerror="this.style.display='none'">`;
 }
 function sideHtml(name, side) {
-  const fl = flagHtml(name), nm = `<span class="tname">${esc(name)}</span>`;
-  return side === "home"
-    ? `<div class="side home">${fl}${nm}</div>`
-    : `<div class="side away">${nm}${fl}</div>`;
+  // Flagge oben, Name darunter (zentriert)
+  return `<div class="side ${side}">${flagHtml(name)}<span class="tname">${esc(name)}</span></div>`;
 }
 
 // ============ Bootstrap ============
@@ -408,18 +406,6 @@ async function renderMatches(content, dir = 0) {
   };
   nav.querySelector("#day-prev").onclick = () => go(-1);
   nav.querySelector("#day-next").onclick = () => go(1);
-
-  // Wischen zwischen Tagen (links = nächster, rechts = vorheriger Tag)
-  let sx = 0, sy = 0, tracking = false;
-  dayView.addEventListener("touchstart", (e) => {
-    const t = e.touches[0]; sx = t.clientX; sy = t.clientY; tracking = true;
-  }, { passive: true });
-  dayView.addEventListener("touchend", (e) => {
-    if (!tracking) return; tracking = false;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - sx, dy = t.clientY - sy;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4) go(dx < 0 ? 1 : -1);
-  }, { passive: true });
 
   const enterClass = dir > 0 ? "enter-right" : dir < 0 ? "enter-left" : "enter-up";
   dayMatches.forEach((m, i) => {
