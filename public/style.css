@@ -165,8 +165,8 @@ body {
 .login-hero { text-align: center; margin-bottom: 26px; }
 .login-logo {
   width: 78px; height: 78px; margin: 0 auto 16px; border-radius: 24px; display: grid; place-items: center; font-size: 40px;
-  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #000));
-  box-shadow: 0 18px 42px -12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.3);
+  background: linear-gradient(150deg, #2ed06a, #0d7438);
+  box-shadow: 0 18px 42px -12px rgba(16, 130, 64, .7), inset 0 1px 0 rgba(255,255,255,.35);
   animation: floaty 4s ease-in-out infinite;
 }
 @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
@@ -177,19 +177,18 @@ body {
 @media (min-width: 430px) { .login-players { grid-template-columns: 1fr 1fr; } }
 .ptile {
   position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 24px 16px 18px; border-radius: 22px; cursor: pointer; font-family: inherit; color: var(--text); transition: .16s;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 32%, var(--card-2)), color-mix(in srgb, var(--pc) 9%, var(--card)));
-  border: 1.5px solid color-mix(in srgb, var(--pc) 55%, var(--border));
+  padding: 24px 16px 18px; border-radius: 22px; cursor: pointer; font-family: inherit; color: #fff; transition: .16s;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--pc) 78%, #0c0f17), color-mix(in srgb, var(--pc) 38%, #0c0f17));
+  border: 1.5px solid color-mix(in srgb, var(--pc) 85%, #fff);
+  box-shadow: 0 16px 34px -16px var(--pc), inset 0 1px 0 rgba(255,255,255,.18);
 }
-.ptile::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(130px 70px at 50% -8%, color-mix(in srgb, var(--pc) 45%, transparent), transparent 70%); }
+.ptile::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(140px 80px at 50% -10%, rgba(255,255,255,.28), transparent 70%); }
 .ptile:active { transform: scale(.985); }
-.ptile-av { font-size: 52px; line-height: 1; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
-.ptile-name { font-size: 22px; font-weight: 900; letter-spacing: -.3px; }
-.ptile-go { font-size: 12.5px; font-weight: 800; color: var(--pc); }
-.ptile.maxi { background: linear-gradient(180deg, #1c2236, #10131f); border-color: color-mix(in srgb, #ff3a3a 38%, var(--border)); }
-.ptile.maxi .ptile-av { filter: drop-shadow(0 0 16px rgba(255,40,40,.7)); animation: botEye 1.6s ease-in-out infinite; }
-@keyframes botEye { 0%, 100% { filter: drop-shadow(0 0 10px rgba(255,40,40,.5)); } 50% { filter: drop-shadow(0 0 20px rgba(255,40,40,.95)); } }
-.ptile.maxi .ptile-go { color: #ff6b6b; }
+.ptile-av { font-size: 52px; line-height: 1; filter: drop-shadow(0 8px 16px rgba(0,0,0,.5)); }
+.ptile-name { font-size: 23px; font-weight: 900; letter-spacing: -.3px; }
+.ptile-go { font-size: 12.5px; font-weight: 800; color: rgba(255,255,255,.85); }
+.ptile.maxi .ptile-av { animation: botEye 1.6s ease-in-out infinite; }
+@keyframes botEye { 0%, 100% { filter: drop-shadow(0 8px 16px rgba(0,0,0,.5)) drop-shadow(0 0 8px rgba(255,40,40,.5)); } 50% { filter: drop-shadow(0 8px 16px rgba(0,0,0,.5)) drop-shadow(0 0 18px rgba(255,40,40,.95)); } }
 @media (hover: hover) { .ptile:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -16px var(--pc); } }
 
 /* ---------- Forms / Buttons ---------- */
@@ -383,15 +382,14 @@ body {
   .login-logo, .ptile.maxi .ptile-av { animation: none !important; }
 }
 
-/* ---------- Rasen-Hintergrund auf der Login-Seite ---------- */
+/* ---------- Grüner Hintergrund auf der Login-Seite ---------- */
 body.on-login {
   background:
-    radial-gradient(900px 520px at 50% 118%, rgba(0,0,0,.5), transparent 70%),
-    repeating-linear-gradient(118deg, rgba(255,255,255,.04) 0 46px, rgba(0,0,0,.045) 46px 92px),
-    linear-gradient(180deg, #1f8a43 0%, #137a36 46%, #0b5325 100%);
+    radial-gradient(900px 560px at 50% -6%, #28a85c, transparent 62%),
+    linear-gradient(180deg, #16934b 0%, #0e7a3b 100%);
   background-attachment: fixed;
 }
-body.on-login .login-sub { color: #cdeccc; }
+body.on-login .login-sub { color: #d6f1d6; }
 
 /* ---------- Eigene SVG-Symbole ---------- */
 .ptile-av svg { width: 58px; height: 58px; display: block; }

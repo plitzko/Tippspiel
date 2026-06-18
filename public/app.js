@@ -64,35 +64,40 @@ const chevron = (dir) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="
 // ---- Eigene Symbole (plattformunabhängig, statt Emojis) ----
 const ICON_BEAR = `
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="ic-bear">
-  <circle cx="27" cy="28" r="14" fill="#ffffff"/>
-  <circle cx="73" cy="28" r="14" fill="#ffffff"/>
-  <circle cx="27" cy="28" r="6.5" fill="#ffc2d9"/>
-  <circle cx="73" cy="28" r="6.5" fill="#ffc2d9"/>
-  <circle cx="50" cy="55" r="35" fill="#ffffff"/>
-  <ellipse cx="50" cy="67" rx="16" ry="13" fill="#eef3ff"/>
-  <circle cx="38" cy="50" r="4.6" fill="#2a2a3a"/>
-  <circle cx="62" cy="50" r="4.6" fill="#2a2a3a"/>
-  <circle cx="39.4" cy="48.4" r="1.5" fill="#ffffff"/>
-  <circle cx="63.4" cy="48.4" r="1.5" fill="#ffffff"/>
-  <ellipse cx="50" cy="60" rx="5.5" ry="4.3" fill="#2a2a3a"/>
-  <path d="M43 69 Q50 75 57 69" stroke="#2a2a3a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <circle cx="25" cy="30" r="15" fill="#ffffff"/>
+  <circle cx="75" cy="30" r="15" fill="#ffffff"/>
+  <circle cx="25" cy="30" r="7.5" fill="#ffc2d9"/>
+  <circle cx="75" cy="30" r="7.5" fill="#ffc2d9"/>
+  <circle cx="50" cy="57" r="37" fill="#ffffff"/>
+  <ellipse cx="33" cy="65" rx="7.5" ry="5.2" fill="#ffd0e2"/>
+  <ellipse cx="67" cy="65" rx="7.5" ry="5.2" fill="#ffd0e2"/>
+  <ellipse cx="50" cy="68" rx="18" ry="15" fill="#eef3ff"/>
+  <circle cx="36" cy="52" r="6" fill="#2a2a3a"/>
+  <circle cx="64" cy="52" r="6" fill="#2a2a3a"/>
+  <circle cx="38" cy="49.8" r="2.1" fill="#ffffff"/>
+  <circle cx="66" cy="49.8" r="2.1" fill="#ffffff"/>
+  <ellipse cx="50" cy="62" rx="6.2" ry="4.8" fill="#2a2a3a"/>
+  <path d="M41 71 Q50 78 59 71" stroke="#2a2a3a" stroke-width="2.7" fill="none" stroke-linecap="round"/>
 </svg>`;
 const ICON_TERM = `
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="ic-term">
-  <path d="M50 9 C29 9 19 25 19 45 C19 58 25 64 30 72 L33 84 C35 91 43 92 50 92 C57 92 65 91 67 84 L70 72 C75 64 81 58 81 45 C81 25 71 9 50 9 Z" fill="#c4c9d4"/>
-  <path d="M50 92 C57 92 65 91 67 84 L70 72 C73 67 76 63 78 59 C70 64 60 66 50 66 C40 66 30 64 22 59 C24 63 27 67 30 72 L33 84 C35 91 43 92 50 92 Z" fill="#8b92a3"/>
-  <ellipse cx="35" cy="47" rx="11" ry="9" fill="#0c0d12"/>
-  <ellipse cx="65" cy="47" rx="11" ry="9" fill="#0c0d12"/>
-  <circle cx="35" cy="47" r="5" fill="#ff2a2a"/>
-  <circle cx="65" cy="47" r="5" fill="#ff2a2a"/>
-  <circle cx="35" cy="46" r="1.8" fill="#ffd6d6"/>
-  <circle cx="65" cy="46" r="1.8" fill="#ffd6d6"/>
-  <path d="M50 56 l-4.5 9 h9 z" fill="#0c0d12"/>
-  <g stroke="#5a606e" stroke-width="2.2" stroke-linecap="round">
-    <line x1="38" y1="75" x2="62" y2="75"/>
-    <line x1="43" y1="71" x2="43" y2="81"/>
-    <line x1="50" y1="71" x2="50" y2="83"/>
-    <line x1="57" y1="71" x2="57" y2="81"/>
+  <line x1="50" y1="16" x2="50" y2="6" stroke="#9aa0ad" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="50" cy="5" r="3.6" fill="#ff3a3a"/>
+  <rect x="14" y="38" width="9" height="20" rx="4" fill="#7b8290"/>
+  <rect x="77" y="38" width="9" height="20" rx="4" fill="#7b8290"/>
+  <rect x="20" y="19" width="60" height="58" rx="18" fill="#cdd2dc"/>
+  <rect x="20" y="19" width="60" height="28" rx="18" fill="#eef1f6" opacity="0.55"/>
+  <rect x="28" y="35" width="44" height="21" rx="10.5" fill="#0c0d12"/>
+  <circle cx="40" cy="45.5" r="5.4" fill="#ff2a2a"/>
+  <circle cx="60" cy="45.5" r="5.4" fill="#ff2a2a"/>
+  <circle cx="40" cy="44" r="2" fill="#ffe0e0"/>
+  <circle cx="60" cy="44" r="2" fill="#ffe0e0"/>
+  <rect x="34" y="62" width="32" height="10" rx="3.5" fill="#2a2e38"/>
+  <g stroke="#7b8290" stroke-width="1.7">
+    <line x1="41" y1="62" x2="41" y2="72"/>
+    <line x1="47" y1="62" x2="47" y2="72"/>
+    <line x1="53" y1="62" x2="53" y2="72"/>
+    <line x1="59" y1="62" x2="59" y2="72"/>
   </g>
 </svg>`;
 const playerIcon = (name) => isLina(name) ? ICON_BEAR : isMaxi(name) ? ICON_TERM : "⚽";
