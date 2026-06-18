@@ -192,7 +192,7 @@ app.put("/api/matches/:id/result", requireUser, (req, res) => {
 app.post("/api/results/sync", requireUser, async (req, res) => {
   try {
     const stats = await syncResults(db);
-    if (stats.updated > 0) persist();
+    if (stats.updated > 0 || stats.added > 0) persist();
     res.json(stats);
   } catch (e) {
     res.status(502).json({ error: e.message });
@@ -223,9 +223,9 @@ const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MIN || 3) * 60 * 1000;
 async function autoSync(reason) {
   try {
     const stats = await syncResults(db);
-    if (stats.updated > 0) {
+    if (stats.updated > 0 || stats.added > 0) {
       persist();
-      console.log(`[auto-sync/${reason}] ${stats.updated} Ergebnis(se) aktualisiert`);
+      console.log(`[auto-sync/${reason}] +${stats.added} Spiele, ${stats.updated} Ergebnis(se) aktualisiert`);
     }
   } catch (e) {
     console.warn(`[auto-sync/${reason}] fehlgeschlagen: ${e.message}`);
@@ -237,6 +237,15 @@ function hasPendingResults() {
   const now = Date.now();
   return db.matches.some(m => m.homeScore == null && new Date(m.kickoff).getTime() <= now);
 }
+// Laeuft das Turnier noch? (bis kurz nach dem Finale) – dann K.o.-Teams nachziehen
+function tournamentOngoing() {
+  return Date.now() < Date.parse("2026-07-21T00:00:00Z");
+}
 
+let syncTick = 0;
 autoSync("startup");
-setInterval(() => { if (hasPendingResults()) autoSync("interval"); }, SYNC_INTERVAL_MS);
+setInterval(() => {
+  syncTick++;
+  if (hasPendingResults()) autoSync("live");                              // alle 3 Min waehrend Spiele laufen
+  else if (tournamentOngoing() && syncTick % 10 === 0) autoSync("populate"); // ~alle 30 Min K.o.-Spiele/Teams nachziehen
+}, SYNC_INTERVAL_MS);

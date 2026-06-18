@@ -54,9 +54,9 @@ Das Skript ist **idempotent**: Es ersetzt vorhandene „Gruppe X"-Spiele, lässt
 selbst angelegte Spiele, eure Spieler und alle Tipps aber unangetastet. Bei
 einem erneuten Aufruf werden die Spiele also nicht verdoppelt.
 
-> Die **K.-o.-Runde** ist noch nicht enthalten, weil die Teilnehmer erst nach
-> der Gruppenphase feststehen. Diese Spiele könnt ihr dann im Tab „Spiele"
-> selbst nachtragen.
+> Die **K.-o.-Runde** (Sechzehntelfinale bis Finale) wird **automatisch**
+> ergänzt, sobald die Teilnehmer feststehen – der Ergebnis-Sync trägt die
+> Spiele samt Teams, Runde und Anpfiff selbst ein.
 
 > Datenquelle: [fixturedownload.com](https://fixturedownload.com/results/fifa-world-cup-2026)
 > (Gruppen gegengeprüft mit ESPN & NBC Sports).
