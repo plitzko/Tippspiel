@@ -92,7 +92,7 @@ function showSkeleton(content, n = 3) {
 
 // ---- Spieler-Themen (Lina = rosa, Maxi = blau, sonst gold) ----
 const PLAYERS = {
-  lina: { color: "#ec4899", contrast: "#ffffff", emoji: "🧸" },
+  lina: { color: "#ec4899", contrast: "#ffffff", emoji: "🐻‍❄️" },
   maxi: { color: "#3b82f6", contrast: "#ffffff", emoji: "🤖" },
 };
 const themeFor = (name) => PLAYERS[(name || "").toLowerCase()] || { color: "#f5b301", contrast: "#1a1300", emoji: "⚽" };
@@ -119,7 +119,7 @@ function rainEmojis(list, count, duration = 2200) {
   }
 }
 function wavingBearCorner() {
-  const b = el(`<div class="corner-bear">🐻</div>`);
+  const b = el(`<div class="corner-bear">🐻‍❄️</div>`);
   document.body.appendChild(b);
   b.animate(
     [{ transform: "translateY(130%) rotate(0)" },
@@ -151,9 +151,8 @@ function playIntro(name) {
     const ov = el(`<div class="intro" style="--pc:${t.color}"></div>`);
     if (isLina(name)) {
       ov.classList.add("intro-lina");
-      ov.innerHTML = `<div class="intro-bear">🐻</div><div class="intro-text">Hallo Lina! 🌹</div>`;
+      ov.innerHTML = `<div class="intro-bear">🐻‍❄️</div><div class="intro-text">Hallo Lina!</div>`;
       document.body.appendChild(ov);
-      rainEmojis(["🌸", "🌹", "💮", "🌷", "🐻‍❄️"], 30, 2400);
     } else {
       ov.classList.add("intro-maxi");
       ov.innerHTML = `<div class="intro-scan"></div><div class="intro-bot">🤖</div><div class="intro-text glitch">Systeme online, Maxi. 🦾</div>`;
@@ -226,49 +225,43 @@ async function init() {
 // ============ "Wer bist du?" ============
 function renderPlayerSelect(status) {
   const view = el(`
-    <div class="auth-wrap">
-      <div class="brand" style="justify-content:center;margin-bottom:22px">
-        <span class="logo">⚽</span>
-        <div class="brand-text"><h1>${TITLE}</h1><small>Tippt die WM 2026 – wer kennt sich besser aus?</small></div>
+    <div class="login">
+      <div class="login-hero">
+        <div class="login-logo">⚽</div>
+        <h1 class="login-title">Linas &amp; Maxis</h1>
+        <div class="login-sub">WM 2026 Tippspiel</div>
       </div>
-      <div class="card">
-        <h2>Wer bist du?</h2>
-        <p class="muted" id="ps-sub" style="margin-top:0"></p>
-        <div id="ps-players" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"></div>
-        <div id="ps-add"></div>
-        <div class="error" id="ps-err"></div>
-      </div>
+      <div class="login-pick-label">${status.players.length ? "Wer tippt?" : "Legt eure Namen an"}</div>
+      <div class="login-players" id="lp"></div>
+      <div id="ps-add"></div>
+      <div class="error" id="ps-err" style="text-align:center"></div>
     </div>
   `);
   app().replaceChildren(view);
 
-  view.querySelector("#ps-sub").textContent = status.players.length
-    ? "Wähle deinen Namen aus." : "Legt zuerst eure beiden Namen an.";
-
-  const list = view.querySelector("#ps-players");
+  const lp = view.querySelector("#lp");
   for (const p of status.players) {
     const th = themeFor(p.name);
-    const flair = isLina(p.name) ? "🌹" : isMaxi(p.name) ? "🦾" : "";
+    const cls = isLina(p.name) ? "lina" : isMaxi(p.name) ? "maxi" : "";
     const b = el(`
-      <button class="player-pick" style="--pc:${th.color}">
-        <span class="pavatar">${th.emoji}</span>
-        <span class="pick-name">${esc(p.name)}</span>
-        <span class="pick-flair">${flair}</span>
-        <span class="arrow">→</span>
+      <button class="ptile ${cls}" style="--pc:${th.color}">
+        <span class="ptile-av">${th.emoji}</span>
+        <span class="ptile-name">${esc(p.name)}</span>
+        <span class="ptile-go">Lostippen →</span>
       </button>`);
     b.onclick = async () => {
       setUser(p); state.tab = "tippen"; state.dayKey = null;
       await playIntro(p.name);
       renderApp();
     };
-    list.appendChild(b);
+    lp.appendChild(b);
   }
 
   const addBox = view.querySelector("#ps-add");
   if (status.canAddPlayer) {
     const form = el(`
-      <div>
-        ${status.players.length ? '<div class="muted" style="text-align:center;margin:6px 0">oder neuen Spieler anlegen:</div>' : ""}
+      <div class="login-add">
+        ${status.players.length ? '<div class="muted" style="text-align:center;margin:12px 0 8px">oder neuen Spieler anlegen</div>' : ""}
         <div class="field"><input id="ps-name" placeholder="Name eingeben" /></div>
         <button class="btn secondary" id="ps-create">+ Spieler anlegen</button>
       </div>`);

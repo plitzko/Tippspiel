@@ -160,20 +160,37 @@ body {
 .lead-msg { text-align: center; color: var(--muted); font-size: 13.5px; font-weight: 500; padding: 4px 0 2px; }
 .lead-msg b { color: var(--text); }
 
-/* ---------- Auth / Player-Select ---------- */
-.auth-wrap { max-width: 410px; margin: 8vh auto 0; }
-.auth-wrap .card { padding: 26px; }
-.auth-wrap h2 { margin: 0 0 4px; font-size: 21px; font-weight: 800; }
-.player-pick {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-  padding: 14px 16px; border-radius: 15px; cursor: pointer; transition: .16s;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 26%, var(--card-2)), color-mix(in srgb, var(--pc) 8%, var(--card)));
-  border: 1.5px solid color-mix(in srgb, var(--pc) 50%, var(--border)); color: var(--text);
-  font-size: 16px; font-weight: 800; font-family: inherit;
+/* ---------- Login / Player-Select ---------- */
+.login { max-width: 440px; margin: 7vh auto 0; padding: 0 2px; }
+.login-hero { text-align: center; margin-bottom: 26px; }
+.login-logo {
+  width: 78px; height: 78px; margin: 0 auto 16px; border-radius: 24px; display: grid; place-items: center; font-size: 40px;
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #000));
+  box-shadow: 0 18px 42px -12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.3);
+  animation: floaty 4s ease-in-out infinite;
 }
-.player-pick:active { transform: scale(.985); }
-.player-pick .pavatar { width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--pc); color: #fff; font-weight: 800; font-size: 18px; box-shadow: 0 6px 16px -6px var(--pc); }
-.player-pick .arrow { margin-left: auto; color: var(--pc); font-size: 20px; }
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+.login-title { font-size: 30px; font-weight: 900; letter-spacing: -1px; margin: 0; }
+.login-sub { color: var(--muted); font-weight: 600; margin-top: 3px; }
+.login-pick-label { text-align: center; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 800; margin-bottom: 14px; }
+.login-players { display: grid; gap: 12px; }
+@media (min-width: 430px) { .login-players { grid-template-columns: 1fr 1fr; } }
+.ptile {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 24px 16px 18px; border-radius: 22px; cursor: pointer; font-family: inherit; color: var(--text); transition: .16s;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 32%, var(--card-2)), color-mix(in srgb, var(--pc) 9%, var(--card)));
+  border: 1.5px solid color-mix(in srgb, var(--pc) 55%, var(--border));
+}
+.ptile::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(130px 70px at 50% -8%, color-mix(in srgb, var(--pc) 45%, transparent), transparent 70%); }
+.ptile:active { transform: scale(.985); }
+.ptile-av { font-size: 52px; line-height: 1; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+.ptile-name { font-size: 22px; font-weight: 900; letter-spacing: -.3px; }
+.ptile-go { font-size: 12.5px; font-weight: 800; color: var(--pc); }
+.ptile.maxi { background: linear-gradient(180deg, #1c2236, #10131f); border-color: color-mix(in srgb, #ff3a3a 38%, var(--border)); }
+.ptile.maxi .ptile-av { filter: drop-shadow(0 0 16px rgba(255,40,40,.7)); animation: botEye 1.6s ease-in-out infinite; }
+@keyframes botEye { 0%, 100% { filter: drop-shadow(0 0 10px rgba(255,40,40,.5)); } 50% { filter: drop-shadow(0 0 20px rgba(255,40,40,.95)); } }
+.ptile.maxi .ptile-go { color: #ff6b6b; }
+@media (hover: hover) { .ptile:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -16px var(--pc); } }
 
 /* ---------- Forms / Buttons ---------- */
 .field { margin-bottom: 14px; }
@@ -362,5 +379,6 @@ body {
 @keyframes glitch { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-1.5px, 1px); } 75% { transform: translate(1.5px, -1px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .intro, .intro-bear, .intro-bot, .intro-scan, .glitch, .corner-bear, .emoji-fall { animation: none !important; }
+  .intro, .intro-bear, .intro-bot, .intro-scan, .glitch, .corner-bear, .emoji-fall,
+  .login-logo, .ptile.maxi .ptile-av { animation: none !important; }
 }

@@ -205,8 +205,8 @@
       "away": "Kroatien",
       "kickoff": "2026-06-17T20:00:00.000Z",
       "stage": "Gruppe L",
-      "homeScore": null,
-      "awayScore": null
+      "homeScore": 4,
+      "awayScore": 2
     },
     {
       "id": "mcd367430",
@@ -214,8 +214,8 @@
       "away": "Panama",
       "kickoff": "2026-06-17T23:00:00.000Z",
       "stage": "Gruppe L",
-      "homeScore": null,
-      "awayScore": null
+      "homeScore": 1,
+      "awayScore": 0
     },
     {
       "id": "m42e23f0d",
@@ -223,8 +223,8 @@
       "away": "Kolumbien",
       "kickoff": "2026-06-18T02:00:00.000Z",
       "stage": "Gruppe K",
-      "homeScore": null,
-      "awayScore": null
+      "homeScore": 1,
+      "awayScore": 3
     },
     {
       "id": "m1171bf50",
