@@ -218,7 +218,7 @@ app.listen(PORT, () => {
 // --- Automatischer Ergebnis-Abruf ---
 // Solange es angepfiffene Spiele ohne Ergebnis gibt, regelmaessig den Feed
 // abfragen. So tauchen Resultate kurz nach Spielende von selbst auf.
-const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MIN || 20) * 60 * 1000;
+const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MIN || 3) * 60 * 1000;
 
 async function autoSync(reason) {
   try {

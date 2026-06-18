@@ -38,6 +38,27 @@ const dayKeyOf = (iso) => new Date(iso).toLocaleDateString("sv-SE"); // YYYY-MM-
 const todayKey = () => new Date().toLocaleDateString("sv-SE");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+// ---- Live-Auto-Refresh: nur neu rendern, wenn sich ein Ergebnis geändert hat ----
+let liveSig = "";
+const resultsSignature = (ms) =>
+  ms.filter(m => m.homeScore != null).map(m => `${m.id}:${m.homeScore}:${m.awayScore}`).join("|") + "#" + ms.length;
+
+async function livePoll() {
+  if (!state.user) return;
+  // nicht stören, während getippt wird
+  if (document.activeElement && document.activeElement.tagName === "INPUT") return;
+  let data;
+  try { data = await api("GET", "/api/matches"); } catch { return; }
+  const sig = resultsSignature(data.matches);
+  if (sig === liveSig) return;          // nichts Neues
+  liveSig = sig;
+  const content = document.getElementById("content");
+  if (!content) return;
+  if (state.tab === "tippen") renderMatches(content);
+  else if (state.tab === "rangliste") renderStandings(content);
+  else if (state.tab === "ergebnisse") renderResults(content);
+}
+
 const ICON_EXIT = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`;
 const chevron = (dir) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir === "left" ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}"/></svg>`;
 
@@ -237,6 +258,7 @@ async function renderMatches(content, dir = 0) {
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
 
   const matches = data.matches;
+  liveSig = resultsSignature(matches);
   if (!matches.length) { content.innerHTML = `<div class="empty">Noch keine Spiele angelegt.</div>`; return; }
 
   // nach Tag gruppieren
@@ -397,6 +419,7 @@ async function renderStandings(content) {
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
   const s = standings.standings;
   const matches = matchesData.matches;
+  liveSig = resultsSignature(matches);
   content.innerHTML = "";
 
   if (s.length === 2) {
@@ -541,6 +564,7 @@ async function renderResults(content) {
   try { data = await api("GET", "/api/matches"); }
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
 
+  liveSig = resultsSignature(data.matches);
   const finished = data.matches.filter(m => m.homeScore != null).length;
   const total = data.matches.length;
 
@@ -576,3 +600,4 @@ async function renderResults(content) {
 }
 
 init();
+setInterval(livePoll, 45000); // Live-Auto-Refresh
