@@ -43,8 +43,17 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Liste der Spieler + Punkte-Schema
 app.get("/api/status", (req, res) => {
+  const userPoints = (u) => {
+    let pts = 0;
+    for (const m of db.matches) {
+      if (m.homeScore == null || m.awayScore == null) continue;
+      const t = db.tips.find(x => x.matchId === m.id && x.userId === u.id);
+      pts += t ? (pointsForTip(t, m, db.config) || 0) : 0;
+    }
+    return pts;
+  };
   res.json({
-    players: db.users.map(publicUser),
+    players: db.users.map(u => ({ ...publicUser(u), points: userPoints(u) })),
     canAddPlayer: db.users.length < MAX_USERS,
     points: db.config.points
   });

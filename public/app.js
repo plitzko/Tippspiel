@@ -95,6 +95,13 @@ const ICON_TERM = `
   <path d="M42 69 Q50 75 58 69" stroke="#8b92a3" stroke-width="3.2" fill="none" stroke-linecap="round"/>
 </svg>`;
 const playerIcon = (name) => isLina(name) ? ICON_BEAR : isMaxi(name) ? ICON_TERM : "⚽";
+const ICON_CROWN = `
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="ic-crown">
+  <path d="M2.6 8.4l4.2 3.3L12 4.2l5.2 7.5 4.2-3.3-1.9 10H4.5z" fill="#f5c84b" stroke="#c99a2e" stroke-width="1" stroke-linejoin="round"/>
+  <circle cx="2.6" cy="8.4" r="1.6" fill="#f5c84b"/>
+  <circle cx="21.4" cy="8.4" r="1.6" fill="#f5c84b"/>
+  <circle cx="12" cy="4.2" r="1.7" fill="#f5c84b"/>
+</svg>`;
 
 // ---- Konfetti bei exaktem Tipp (einmal je Spiel pro Sitzung) ----
 const celebrated = new Set();
@@ -274,21 +281,38 @@ function renderPlayerSelect(status) {
   document.body.classList.add("on-login");
 
   const lp = view.querySelector("#lp");
-  for (const p of status.players) {
+  const players = status.players;
+  const maxPts = Math.max(0, ...players.map(p => p.points || 0));
+  const leaders = players.filter(p => (p.points || 0) === maxPts);
+  const someScored = players.some(p => (p.points || 0) > 0);
+
+  const makeTile = (p, i) => {
     const th = themeFor(p.name);
     const cls = isLina(p.name) ? "lina" : isMaxi(p.name) ? "maxi" : "";
+    const isLeader = someScored && leaders.length === 1 && leaders[0].id === p.id;
+    const pts = p.points || 0;
     const b = el(`
-      <button class="ptile ${cls}" style="--pc:${th.color}">
+      <button class="ptile ${cls} enter-up" style="--pc:${th.color};animation-delay:${i * 70}ms">
+        ${isLeader ? `<span class="ptile-crown">${ICON_CROWN}</span>` : ""}
         <span class="ptile-av">${playerIcon(p.name)}</span>
         <span class="ptile-name">${esc(p.name)}</span>
-        <span class="ptile-go">Lostippen →</span>
+        <span class="ptile-pts">${pts} ${pts === 1 ? "Punkt" : "Punkte"}</span>
       </button>`);
     b.onclick = async () => {
       setUser(p); state.tab = "tippen"; state.dayKey = null;
       renderApp();                 // App zuerst rendern (unter der Animation) – kein Aufblitzen der Login-Seite
       await playIntro(p.name);
     };
-    lp.appendChild(b);
+    return b;
+  };
+
+  if (players.length === 2) {
+    lp.classList.add("login-vs");
+    lp.appendChild(makeTile(players[0], 0));
+    lp.appendChild(el(`<div class="vs-badge">VS</div>`));
+    lp.appendChild(makeTile(players[1], 1));
+  } else {
+    players.forEach((p, i) => lp.appendChild(makeTile(p, i)));
   }
 
   const addBox = view.querySelector("#ps-add");

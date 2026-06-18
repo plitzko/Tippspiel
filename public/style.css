@@ -401,3 +401,12 @@ body.on-login .login-sub { color: #cfe6d4; }
 .corner-bear svg { width: 66px; height: 66px; display: block; }
 .red-flash svg { width: 96px; height: 96px; }
 .ic-term { filter: drop-shadow(0 0 5px rgba(95, 217, 255, .6)); }
+
+/* ---------- Login Head-to-Head ---------- */
+.login-vs { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.login-vs .ptile { flex: 1; }
+.vs-badge { align-self: center; font-size: 13px; font-weight: 900; letter-spacing: 1.5px; color: var(--muted-2); padding: 2px 0; }
+@media (min-width: 470px) { .login-vs { flex-direction: row; align-items: stretch; } }
+.ptile-pts { font-size: 13px; font-weight: 800; color: rgba(255,255,255,.92); }
+.ptile-crown { position: absolute; top: 9px; right: 11px; width: 24px; height: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+.ptile-crown svg { width: 100%; height: 100%; display: block; }
