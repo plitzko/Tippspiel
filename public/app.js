@@ -61,6 +61,42 @@ async function livePoll() {
 const ICON_EXIT = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`;
 const chevron = (dir) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${dir === "left" ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}"/></svg>`;
 
+// ---- Eigene Symbole (plattformunabhängig, statt Emojis) ----
+const ICON_BEAR = `
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="ic-bear">
+  <circle cx="27" cy="28" r="14" fill="#ffffff"/>
+  <circle cx="73" cy="28" r="14" fill="#ffffff"/>
+  <circle cx="27" cy="28" r="6.5" fill="#ffc2d9"/>
+  <circle cx="73" cy="28" r="6.5" fill="#ffc2d9"/>
+  <circle cx="50" cy="55" r="35" fill="#ffffff"/>
+  <ellipse cx="50" cy="67" rx="16" ry="13" fill="#eef3ff"/>
+  <circle cx="38" cy="50" r="4.6" fill="#2a2a3a"/>
+  <circle cx="62" cy="50" r="4.6" fill="#2a2a3a"/>
+  <circle cx="39.4" cy="48.4" r="1.5" fill="#ffffff"/>
+  <circle cx="63.4" cy="48.4" r="1.5" fill="#ffffff"/>
+  <ellipse cx="50" cy="60" rx="5.5" ry="4.3" fill="#2a2a3a"/>
+  <path d="M43 69 Q50 75 57 69" stroke="#2a2a3a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+</svg>`;
+const ICON_TERM = `
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="ic-term">
+  <path d="M50 9 C29 9 19 25 19 45 C19 58 25 64 30 72 L33 84 C35 91 43 92 50 92 C57 92 65 91 67 84 L70 72 C75 64 81 58 81 45 C81 25 71 9 50 9 Z" fill="#c4c9d4"/>
+  <path d="M50 92 C57 92 65 91 67 84 L70 72 C73 67 76 63 78 59 C70 64 60 66 50 66 C40 66 30 64 22 59 C24 63 27 67 30 72 L33 84 C35 91 43 92 50 92 Z" fill="#8b92a3"/>
+  <ellipse cx="35" cy="47" rx="11" ry="9" fill="#0c0d12"/>
+  <ellipse cx="65" cy="47" rx="11" ry="9" fill="#0c0d12"/>
+  <circle cx="35" cy="47" r="5" fill="#ff2a2a"/>
+  <circle cx="65" cy="47" r="5" fill="#ff2a2a"/>
+  <circle cx="35" cy="46" r="1.8" fill="#ffd6d6"/>
+  <circle cx="65" cy="46" r="1.8" fill="#ffd6d6"/>
+  <path d="M50 56 l-4.5 9 h9 z" fill="#0c0d12"/>
+  <g stroke="#5a606e" stroke-width="2.2" stroke-linecap="round">
+    <line x1="38" y1="75" x2="62" y2="75"/>
+    <line x1="43" y1="71" x2="43" y2="81"/>
+    <line x1="50" y1="71" x2="50" y2="83"/>
+    <line x1="57" y1="71" x2="57" y2="81"/>
+  </g>
+</svg>`;
+const playerIcon = (name) => isLina(name) ? ICON_BEAR : isMaxi(name) ? ICON_TERM : "⚽";
+
 // ---- Konfetti bei exaktem Tipp (einmal je Spiel pro Sitzung) ----
 const celebrated = new Set();
 function confettiBurst(target) {
@@ -119,7 +155,7 @@ function rainEmojis(list, count, duration = 2200) {
   }
 }
 function wavingBearCorner() {
-  const b = el(`<div class="corner-bear">🐻‍❄️</div>`);
+  const b = el(`<div class="corner-bear">${ICON_BEAR}</div>`);
   document.body.appendChild(b);
   b.animate(
     [{ transform: "translateY(130%) rotate(0)" },
@@ -132,7 +168,7 @@ function wavingBearCorner() {
   ).onfinish = () => b.remove();
 }
 function redFlash() {
-  const f = el(`<div class="red-flash">🤖</div>`);
+  const f = el(`<div class="red-flash">${ICON_TERM}</div>`);
   document.body.appendChild(f);
   f.animate([{ opacity: 0 }, { opacity: 0.92, offset: 0.18 }, { opacity: 0 }], { duration: 950 }).onfinish = () => f.remove();
 }
@@ -151,11 +187,11 @@ function playIntro(name) {
     const ov = el(`<div class="intro" style="--pc:${t.color}"></div>`);
     if (isLina(name)) {
       ov.classList.add("intro-lina");
-      ov.innerHTML = `<div class="intro-bear">🐻‍❄️</div><div class="intro-text">Hallo Lina!</div>`;
+      ov.innerHTML = `<div class="intro-bear">${ICON_BEAR}</div><div class="intro-text">Hallo Lina!</div>`;
       document.body.appendChild(ov);
     } else {
       ov.classList.add("intro-maxi");
-      ov.innerHTML = `<div class="intro-scan"></div><div class="intro-bot">🤖</div><div class="intro-text glitch">Systeme online, Maxi. 🦾</div>`;
+      ov.innerHTML = `<div class="intro-scan"></div><div class="intro-bot">${ICON_TERM}</div><div class="intro-text glitch">Systeme online, Maxi.</div>`;
       document.body.appendChild(ov);
     }
     setTimeout(() => { ov.classList.add("intro-out"); setTimeout(() => { ov.remove(); resolve(); }, 350); }, 1500);
@@ -238,6 +274,7 @@ function renderPlayerSelect(status) {
     </div>
   `);
   app().replaceChildren(view);
+  document.body.classList.add("on-login");
 
   const lp = view.querySelector("#lp");
   for (const p of status.players) {
@@ -245,14 +282,14 @@ function renderPlayerSelect(status) {
     const cls = isLina(p.name) ? "lina" : isMaxi(p.name) ? "maxi" : "";
     const b = el(`
       <button class="ptile ${cls}" style="--pc:${th.color}">
-        <span class="ptile-av">${th.emoji}</span>
+        <span class="ptile-av">${playerIcon(p.name)}</span>
         <span class="ptile-name">${esc(p.name)}</span>
         <span class="ptile-go">Lostippen →</span>
       </button>`);
     b.onclick = async () => {
       setUser(p); state.tab = "tippen"; state.dayKey = null;
+      renderApp();                 // App zuerst rendern (unter der Animation) – kein Aufblitzen der Login-Seite
       await playIntro(p.name);
-      renderApp();
     };
     lp.appendChild(b);
   }
@@ -271,7 +308,7 @@ function renderPlayerSelect(status) {
       const err = view.querySelector("#ps-err");
       err.textContent = "";
       if (!name) { err.textContent = "Bitte einen Namen eingeben."; return; }
-      try { const data = await api("POST", "/api/players", { name }); setUser(data.player); state.tab = "tippen"; await playIntro(name); renderApp(); }
+      try { const data = await api("POST", "/api/players", { name }); setUser(data.player); state.tab = "tippen"; renderApp(); await playIntro(name); }
       catch (e) { err.textContent = e.message; }
     };
     form.querySelector("#ps-create").onclick = create;
@@ -282,6 +319,7 @@ function renderPlayerSelect(status) {
 // ============ Haupt-App ============
 function renderApp() {
   applyTheme(state.user.name);
+  document.body.classList.remove("on-login");
   if (state.tab === "ergebnisse") state.tab = "rangliste";
   const tabs = [["tippen", "⚽ Tippen"], ["rangliste", "🏆 Rangliste"]];
 

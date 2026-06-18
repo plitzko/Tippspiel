@@ -382,3 +382,20 @@ body {
   .intro, .intro-bear, .intro-bot, .intro-scan, .glitch, .corner-bear, .emoji-fall,
   .login-logo, .ptile.maxi .ptile-av { animation: none !important; }
 }
+
+/* ---------- Rasen-Hintergrund auf der Login-Seite ---------- */
+body.on-login {
+  background:
+    radial-gradient(900px 520px at 50% 118%, rgba(0,0,0,.5), transparent 70%),
+    repeating-linear-gradient(118deg, rgba(255,255,255,.04) 0 46px, rgba(0,0,0,.045) 46px 92px),
+    linear-gradient(180deg, #1f8a43 0%, #137a36 46%, #0b5325 100%);
+  background-attachment: fixed;
+}
+body.on-login .login-sub { color: #cdeccc; }
+
+/* ---------- Eigene SVG-Symbole ---------- */
+.ptile-av svg { width: 58px; height: 58px; display: block; }
+.intro-bear svg, .intro-bot svg { width: 122px; height: 122px; display: block; }
+.corner-bear svg { width: 66px; height: 66px; display: block; }
+.red-flash svg { width: 96px; height: 96px; }
+.ic-term { filter: drop-shadow(0 0 4px rgba(255, 40, 40, .55)); }
