@@ -28,10 +28,11 @@ function ensureDir() {
 export function load() {
   ensureDir();
   if (!fs.existsSync(DB_FILE)) {
-    // Erststart: falls ein mitgelieferter Stand (data/db.json) existiert und
-    // DB_FILE woanders liegt (z.B. Hosting-Volume), diesen als Startzustand
-    // uebernehmen – so sind Spieler/Tipps nach dem Deployment direkt da.
-    const bundled = path.join(__dirname, "data", "db.json");
+    // Erststart: falls ein mitgelieferter Seed-Stand (data/seed-db.json)
+    // existiert und DB_FILE woanders liegt (z.B. Hosting-Volume), diesen als
+    // Startzustand uebernehmen – so sind Spieler/Tipps nach dem Deployment da.
+    // Die Live-Datei selbst ist NICHT versioniert; nur dieser Seed.
+    const bundled = path.join(__dirname, "data", "seed-db.json");
     if (path.resolve(DB_FILE) !== path.resolve(bundled) && fs.existsSync(bundled)) {
       fs.copyFileSync(bundled, DB_FILE);
     } else {

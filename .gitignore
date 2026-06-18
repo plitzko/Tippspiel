@@ -1,5 +1,8 @@
 node_modules/
 *.log
-data/*.tmp
-data/db.json.tmp
 _test-db.json
+
+# Live-Datenbank ist Laufzeit-Zustand und wird NICHT versioniert.
+# Der Startzustand fuer frische Deployments steht in data/seed-db.json.
+data/db.json
+data/*.tmp
