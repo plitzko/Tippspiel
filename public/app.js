@@ -281,7 +281,19 @@ function renderPlayerSelect(status) {
   document.body.classList.add("on-login");
 
   const lp = view.querySelector("#lp");
-  const players = status.players;
+  const players = [...status.players]; // Create a copy to avoid modifying the original status object
+
+  // Sort players to prioritize Lina, then Maxi
+  players.sort((a, b) => {
+    const nameA = (a.name || "").toLowerCase();
+    const nameB = (b.name || "").toLowerCase();
+
+    if (nameA === "lina" && nameB !== "lina") return -1;
+    if (nameB === "lina" && nameA !== "lina") return 1;
+    if (nameA === "maxi" && nameB !== "maxi") return -1;
+    if (nameB === "maxi" && nameA !== "maxi") return 1;
+    return 0;
+  });
   const maxPts = Math.max(0, ...players.map(p => p.points || 0));
   const leaders = players.filter(p => (p.points || 0) === maxPts);
   const someScored = players.some(p => (p.points || 0) > 0);
