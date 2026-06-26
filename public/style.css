@@ -413,3 +413,10 @@ body.on-login .login-sub { color: #cfe6d4; }
 
 /* Regel-Unterüberschriften (zwei Phasen) */
 .rules-sub { font-size: 12px; font-weight: 700; color: var(--accent); margin: 2px 0 2px; letter-spacing: .3px; }
+
+/* ---------- Phasen-Tabs in der Rangliste ---------- */
+.subtabs { display: flex; gap: 6px; margin-bottom: 14px; background: var(--bg-soft); border: 1px solid var(--line-soft); padding: 4px; border-radius: 12px; }
+.subtabs button { flex: 1; background: transparent; border: none; color: var(--muted); padding: 9px; border-radius: 9px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit; transition: .15s; }
+.subtabs button.active { background: var(--accent); color: var(--accent-contrast); box-shadow: 0 5px 14px -6px var(--accent-glow); }
+.subtabs button:active { transform: scale(.97); }
+.ptile-phase { opacity: .7; font-weight: 700; }

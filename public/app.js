@@ -8,6 +8,8 @@ const state = {
   dayKey: null,
   points: { difference: 2, winner: 1, goalPerTeam: 1 },
   koPoints: { exact: 5, difference: 3, winner: 2, goalPerTeam: 1 },
+  standingsPhase: null,        // welche Phase ist in der Rangliste offen
+  standingsPhaseUserSet: false // hat der Nutzer manuell umgeschaltet?
 };
 
 async function api(method, url, body) {
@@ -296,21 +298,25 @@ function renderPlayerSelect(status) {
     if (nameB === "maxi" && nameA !== "maxi") return 1;
     return 0;
   });
-  const maxPts = Math.max(0, ...players.map(p => p.points || 0));
-  const leaders = players.filter(p => (p.points || 0) === maxPts);
-  const someScored = players.some(p => (p.points || 0) > 0);
+  // Punkte phasenabhängig: in der K.o.-Phase die K.o.-Wertung, sonst die Gruppenwertung
+  const phase = status.phase || "group";
+  const ptsOf = (p) => (phase === "ko" ? p.ko : p.group) || 0;
+  const phaseLabel = phase === "ko" ? "K.o." : "Gruppe";
+  const maxPts = Math.max(0, ...players.map(ptsOf));
+  const leaders = players.filter(p => ptsOf(p) === maxPts);
+  const someScored = players.some(p => ptsOf(p) > 0);
 
   const makeTile = (p, i) => {
     const th = themeFor(p.name);
     const cls = isLina(p.name) ? "lina" : isMaxi(p.name) ? "maxi" : "";
     const isLeader = someScored && leaders.length === 1 && leaders[0].id === p.id;
-    const pts = p.points || 0;
+    const pts = ptsOf(p);
     const b = el(`
       <button class="ptile ${cls} enter-up" style="--pc:${th.color};animation-delay:${i * 70}ms">
         ${isLeader ? `<span class="ptile-crown">${ICON_CROWN}</span>` : ""}
         <span class="ptile-av">${playerIcon(p.name)}</span>
         <span class="ptile-name">${esc(p.name)}</span>
-        <span class="ptile-pts">${pts} ${pts === 1 ? "Punkt" : "Punkte"}</span>
+        <span class="ptile-pts">${pts} ${pts === 1 ? "Punkt" : "Punkte"} <span class="ptile-phase">· ${phaseLabel}</span></span>
       </button>`);
     b.onclick = async () => {
       setUser(p); state.tab = "tippen"; state.dayKey = null;
@@ -594,6 +600,12 @@ async function renderStandings(content) {
   const displayOrder = [...players].sort((a, b) => ord(a) - ord(b));
   const matches = matchesData.matches;
   liveSig = resultsSignature(matches);
+
+  const isKoStage = (st) => !!st && !st.startsWith("Gruppe");
+  const koExists = matches.some(m => isKoStage(m.stage));
+  if (!state.standingsPhaseUserSet) state.standingsPhase = koExists ? "ko" : "group";
+  const phase = state.standingsPhase || "group";
+
   content.innerHTML = "";
 
   // Aktualisieren-Leiste (Ergebnisse kommen automatisch, hier manuell nachhelfen)
@@ -610,9 +622,19 @@ async function renderStandings(content) {
     catch (e) { btn.disabled = false; btn.textContent = "🔄 Aktualisieren"; }
   };
 
-  // Zwei getrennte Wertungen: K.o.-Phase (neu ab 0) und Gruppenphase
-  const phaseBoard = (arr, title, emptyNote) => {
-    content.appendChild(el(`<div class="section-title" style="margin-top:18px">${title}</div>`));
+  // Phasen-Tabs (Standard = aktuelle Phase)
+  const sub = el(`
+    <div class="subtabs">
+      <button data-ph="group" class="${phase === "group" ? "active" : ""}">Gruppenphase</button>
+      <button data-ph="ko" class="${phase === "ko" ? "active" : ""}">K.o.-Phase</button>
+    </div>`);
+  content.appendChild(sub);
+  sub.querySelectorAll("button").forEach(b => b.onclick = () => {
+    state.standingsPhase = b.dataset.ph; state.standingsPhaseUserSet = true; renderStandings(content);
+  });
+
+  const phaseArr = phase === "ko" ? standings.ko : standings.group;
+  (function scoreboard(arr) {
     if (!arr || arr.length !== 2) { content.appendChild(el(`<div class="empty">Noch keine Spieler.</div>`)); return; }
     const order = [...arr].sort((a, b) => ord(a) - ord(b));
     const leader = arr[0];
@@ -638,22 +660,19 @@ async function renderStandings(content) {
         <div class="sb-mid"><div class="sb-vs">VS</div></div>
         ${sbCard(order[1])}
       </div>`));
-    if (!anyFinished) {
-      content.appendChild(el(`<div class="lead-msg">${emptyNote}</div>`));
-    } else {
+    if (anyFinished) {
       const diff = Math.abs(arr[0].points - arr[1].points);
       const msg = tie ? "Gleichstand! 🤝 Jeder Tipp zählt." : `<b>${esc(leader.name)}</b> führt mit ${diff} Punkt${diff === 1 ? "" : "en"}.`;
       content.appendChild(el(`<div class="lead-msg">${msg}</div>`));
+    } else {
+      content.appendChild(el(`<div class="lead-msg">${phase === "ko" ? "Beginnt nach der Gruppenphase." : "Noch keine Ergebnisse."}</div>`));
     }
-  };
-
-  phaseBoard(standings.ko, "🏆 K.o.-Phase – zählt neu ab 0", "Beginnt nach der Gruppenphase.");
-  phaseBoard(standings.group, "Gruppenphase", "Noch keine Ergebnisse.");
+  })(phaseArr);
 
   // ----- Zusatz-Statistiken aus den Spielen -----
-  const finished = matches.filter(m => m.homeScore != null);
+  const finished = matches.filter(m => m.homeScore != null && isKoStage(m.stage) === (phase === "ko"));
   if (players.length === 2 && finished.length) {
-    content.appendChild(el(`<div class="section-title" style="margin-top:18px">Statistiken (gesamt)</div>`));
+    content.appendChild(el(`<div class="section-title" style="margin-top:18px">Details</div>`));
     const ids = displayOrder.map(p => p.userId);
     const info = {};
     players.forEach(p => info[p.userId] = { name: p.name, color: themeFor(p.name).color, duel: 0, best: null, tipped: 0, tendency: 0, diffc: 0, exact: 0, seq: [] });

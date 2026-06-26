@@ -43,17 +43,20 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Liste der Spieler + Punkte-Schema
 app.get("/api/status", (req, res) => {
-  const userPoints = (u) => {
+  const koExists = db.matches.some(isKnockout);
+  const phasePoints = (u, wantKo) => {
     let pts = 0;
     for (const m of db.matches) {
       if (m.homeScore == null || m.awayScore == null) continue;
+      if (isKnockout(m) !== wantKo) continue;
       const t = db.tips.find(x => x.matchId === m.id && x.userId === u.id);
       pts += t ? (pointsFor(t, m, db.config) || 0) : 0;
     }
     return pts;
   };
   res.json({
-    players: db.users.map(u => ({ ...publicUser(u), points: userPoints(u) })),
+    players: db.users.map(u => ({ ...publicUser(u), group: phasePoints(u, false), ko: phasePoints(u, true) })),
+    phase: koExists ? "ko" : "group",
     canAddPlayer: db.users.length < MAX_USERS,
     points: db.config.points,
     ko: db.config.ko
