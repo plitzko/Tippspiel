@@ -1,0 +1,7 @@
+node_modules
+.git
+*.log
+data/db.json
+data/*.tmp
+_boot
+_test-db.json
