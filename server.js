@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { load, saveSync } from "./db.js";
 import { syncResults } from "./sync-results.js";
-import { scoreBreakdown, pointsForTip } from "./scoring.js";
+import { breakdownFor, pointsFor, isKnockout } from "./scoring.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -48,14 +48,15 @@ app.get("/api/status", (req, res) => {
     for (const m of db.matches) {
       if (m.homeScore == null || m.awayScore == null) continue;
       const t = db.tips.find(x => x.matchId === m.id && x.userId === u.id);
-      pts += t ? (pointsForTip(t, m, db.config) || 0) : 0;
+      pts += t ? (pointsFor(t, m, db.config) || 0) : 0;
     }
     return pts;
   };
   res.json({
     players: db.users.map(u => ({ ...publicUser(u), points: userPoints(u) })),
     canAddPlayer: db.users.length < MAX_USERS,
-    points: db.config.points
+    points: db.config.points,
+    ko: db.config.ko
   });
 });
 
@@ -84,13 +85,13 @@ app.get("/api/matches", requireUser, (req, res) => {
     const visibleTips = db.users.map(u => {
       const t = allTips.find(x => x.userId === u.id);
       const reveal = started || u.id === me;
-      const bd = (reveal && t) ? scoreBreakdown(t, m, db.config) : null;
+      const bd = (reveal && t) ? breakdownFor(t, m, db.config) : null;
       return {
         userId: u.id,
         name: u.name,
         tip: reveal && t ? { home: t.home, away: t.away } : null,
         hasTip: !!t,
-        points: t ? pointsForTip(t, m, db.config) : (started ? 0 : null),
+        points: t ? pointsFor(t, m, db.config) : (started ? 0 : null),
         breakdown: bd ? bd.parts : null
       };
     });
@@ -127,23 +128,27 @@ app.post("/api/tips", requireUser, (req, res) => {
   res.json({ ok: true });
 });
 
-// Rangliste
+// Rangliste – getrennt nach Gruppenphase und K.o.-Phase
 app.get("/api/standings", requireUser, (req, res) => {
-  const standings = db.users.map(u => {
+  const phaseStats = (inPhase) => db.users.map(u => {
     let points = 0, exact = 0, tips = 0, finished = 0;
     for (const m of db.matches) {
+      if (!inPhase(m)) continue;
       const t = db.tips.find(x => x.matchId === m.id && x.userId === u.id);
       if (t) tips++;
-      const pts = t ? pointsForTip(t, m, db.config) : null;
       if (m.homeScore != null && m.awayScore != null) {
         finished++;
-        points += pts || 0;
+        points += t ? (pointsFor(t, m, db.config) || 0) : 0;
         if (t && t.home === m.homeScore && t.away === m.awayScore) exact++;
       }
     }
     return { userId: u.id, name: u.name, points, exact, tips, finished };
   }).sort((a, b) => b.points - a.points || b.exact - a.exact);
-  res.json({ standings });
+
+  res.json({
+    group: phaseStats(m => !isKnockout(m)),
+    ko: phaseStats(m => isKnockout(m))
+  });
 });
 
 // --- Spiele verwalten (beide Spieler duerfen das) ---

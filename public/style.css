@@ -410,3 +410,6 @@ body.on-login .login-sub { color: #cfe6d4; }
 .ptile-pts { font-size: 13px; font-weight: 800; color: rgba(255,255,255,.92); }
 .ptile-crown { position: absolute; top: 9px; right: 11px; width: 24px; height: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
 .ptile-crown svg { width: 100%; height: 100%; display: block; }
+
+/* Regel-Unterüberschriften (zwei Phasen) */
+.rules-sub { font-size: 12px; font-weight: 700; color: var(--accent); margin: 2px 0 2px; letter-spacing: .3px; }

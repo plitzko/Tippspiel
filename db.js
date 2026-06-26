@@ -13,10 +13,10 @@ const DEFAULT_DATA = {
   tips: [],
   sessions: [],
   config: {
-    // Punkte-Schema (voll additiv): richtige Tendenz (winner) + richtige
-    // Tordifferenz (difference) + je richtige Mannschafts-Toranzahl (goalPerTeam)
-    // werden alle addiert. "Alles richtig" = 1 + 2 + 1 + 1 = 5.
-    points: { difference: 2, winner: 1, goalPerTeam: 1 }
+    // Gruppenphase (additiv): Tendenz + Differenz + je Mannschafts-Toranzahl, exakt = 5
+    points: { difference: 2, winner: 1, goalPerTeam: 1 },
+    // K.o.-Phase (nur das Höchste zählt): exakt 5, Differenz 3, Sieger 2, eine Toranzahl 1
+    ko: { exact: 5, difference: 3, winner: 2, goalPerTeam: 1 }
   }
 };
 
@@ -47,6 +47,7 @@ export function load() {
     const merged = { ...structuredClone(DEFAULT_DATA), ...data };
     merged.config = { ...DEFAULT_DATA.config, ...(data.config || {}) };
     merged.config.points = { ...DEFAULT_DATA.config.points, ...(data.config?.points || {}) };
+    merged.config.ko = { ...DEFAULT_DATA.config.ko, ...(data.config?.ko || {}) };
     return merged;
   } catch (e) {
     console.error("DB konnte nicht gelesen werden, nutze Default:", e.message);

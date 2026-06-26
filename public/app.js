@@ -7,6 +7,7 @@ const state = {
   tab: "tippen",
   dayKey: null,
   points: { difference: 2, winner: 1, goalPerTeam: 1 },
+  koPoints: { exact: 5, difference: 3, winner: 2, goalPerTeam: 1 },
 };
 
 async function api(method, url, body) {
@@ -256,6 +257,7 @@ async function init() {
   try { status = await api("GET", "/api/status"); }
   catch { status = { players: [], canAddPlayer: true }; }
   state.points = status.points || state.points;
+  state.koPoints = status.ko || state.koPoints;
 
   const me = status.players.find(p => p.id === state.userId);
   if (me) { state.user = me; renderApp(); }
@@ -587,16 +589,9 @@ async function renderStandings(content) {
   let standings, matchesData;
   try { [standings, matchesData] = await Promise.all([api("GET", "/api/standings"), api("GET", "/api/matches")]); }
   catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
-  const s = standings.standings; // Nach Punkten sortiert für die Ränge
-  const displayOrder = [...s].sort((a, b) => {
-    const nameA = (a.name || "").toLowerCase();
-    const nameB = (b.name || "").toLowerCase();
-    if (nameA === "lina" && nameB !== "lina") return -1;
-    if (nameB === "lina" && nameA !== "lina") return 1;
-    if (nameA === "maxi" && nameB !== "maxi") return -1;
-    if (nameB === "maxi" && nameA !== "maxi") return 1;
-    return 0;
-  });
+  const players = standings.group;  // Spielerliste (Namen/IDs)
+  const ord = (p) => isLina(p.name) ? 0 : isMaxi(p.name) ? 1 : 2;
+  const displayOrder = [...players].sort((a, b) => ord(a) - ord(b));
   const matches = matchesData.matches;
   liveSig = resultsSignature(matches);
   content.innerHTML = "";
@@ -615,18 +610,19 @@ async function renderStandings(content) {
     catch (e) { btn.disabled = false; btn.textContent = "🔄 Aktualisieren"; }
   };
 
-  if (s.length === 2) {
-    const [p1, p2] = displayOrder;
-    const leader = s[0];
-    const diff = s[0].points - s[1].points;
-    const tie = s[0].points === s[1].points;
-    const lead = tie ? "Gleichstand! 🤝 Jeder Tipp zählt." : `<b>${esc(leader.name)}</b> führt mit ${diff} Punkt${diff === 1 ? "" : "en"}.`;
-    
+  // Zwei getrennte Wertungen: K.o.-Phase (neu ab 0) und Gruppenphase
+  const phaseBoard = (arr, title, emptyNote) => {
+    content.appendChild(el(`<div class="section-title" style="margin-top:18px">${title}</div>`));
+    if (!arr || arr.length !== 2) { content.appendChild(el(`<div class="empty">Noch keine Spieler.</div>`)); return; }
+    const order = [...arr].sort((a, b) => ord(a) - ord(b));
+    const leader = arr[0];
+    const tie = arr[0].points === arr[1].points;
+    const anyFinished = arr.some(p => p.finished > 0);
     const sbCard = (p) => {
       const color = themeFor(p.name).color;
       const me = p.userId === state.user.id;
-      const isLeader = !tie && p.userId === leader.userId;
-      const rank = tie ? "🤝" : (isLeader ? "🥇" : "🥈");
+      const isLeader = anyFinished && !tie && p.userId === leader.userId;
+      const rank = !anyFinished ? "•" : (tie ? "🤝" : (isLeader ? "🥇" : "🥈"));
       return `
         <div class="sb-card ${isLeader ? "leader" : ""}" style="--pc:${color}">
           <div class="sb-rank">${rank}</div>
@@ -638,31 +634,29 @@ async function renderStandings(content) {
     };
     content.appendChild(el(`
       <div class="scoreboard">
-        ${sbCard(p1)}
+        ${sbCard(order[0])}
         <div class="sb-mid"><div class="sb-vs">VS</div></div>
-        ${sbCard(p2)}
+        ${sbCard(order[1])}
       </div>`));
-    content.appendChild(el(`<div class="lead-msg">${lead}</div>`));
-  } else {
-    const medals = ["🥇", "🥈", "🥉"];
-    for (let i = 0; i < s.length; i++) {
-      const p = s[i];
-      content.appendChild(el(`
-        <div class="card" style="--pc:${themeFor(p.name).color};display:flex;align-items:center;gap:12px">
-          <span style="font-size:20px">${medals[i] || (i + 1)}</span>
-          <span style="font-weight:700;flex:1">${esc(p.name)}${p.userId === state.user.id ? " (du)" : ""}</span>
-          <span style="font-size:22px;font-weight:900;color:var(--pc)">${p.points}</span>
-        </div>`));
+    if (!anyFinished) {
+      content.appendChild(el(`<div class="lead-msg">${emptyNote}</div>`));
+    } else {
+      const diff = Math.abs(arr[0].points - arr[1].points);
+      const msg = tie ? "Gleichstand! 🤝 Jeder Tipp zählt." : `<b>${esc(leader.name)}</b> führt mit ${diff} Punkt${diff === 1 ? "" : "en"}.`;
+      content.appendChild(el(`<div class="lead-msg">${msg}</div>`));
     }
-    if (!s.length) content.appendChild(el(`<div class="empty">Noch keine Spieler.</div>`));
-  }
+  };
+
+  phaseBoard(standings.ko, "🏆 K.o.-Phase – zählt neu ab 0", "Beginnt nach der Gruppenphase.");
+  phaseBoard(standings.group, "Gruppenphase", "Noch keine Ergebnisse.");
 
   // ----- Zusatz-Statistiken aus den Spielen -----
   const finished = matches.filter(m => m.homeScore != null);
-  if (s.length === 2 && finished.length) {
+  if (players.length === 2 && finished.length) {
+    content.appendChild(el(`<div class="section-title" style="margin-top:18px">Statistiken (gesamt)</div>`));
     const ids = displayOrder.map(p => p.userId);
     const info = {};
-    s.forEach(p => info[p.userId] = { name: p.name, color: themeFor(p.name).color, duel: 0, best: null, tipped: 0, tendency: 0, diffc: 0, exact: 0, seq: [] });
+    players.forEach(p => info[p.userId] = { name: p.name, color: themeFor(p.name).color, duel: 0, best: null, tipped: 0, tendency: 0, diffc: 0, exact: 0, seq: [] });
     let draws = 0;
     const dayMap = new Map();
     for (const m of finished) {
@@ -793,19 +787,26 @@ async function renderStandings(content) {
     }
   }
 
-  // Punkte-Regeln
-  const p = state.points;
-  const exact = p.winner + p.difference + 2 * p.goalPerTeam;
+  // Punkte-Regeln (beide Phasen)
+  const p = state.points, k = state.koPoints;
+  const gExact = p.winner + p.difference + 2 * p.goalPerTeam;
   content.appendChild(el(`
     <div class="card rules">
-      <div class="section-title" style="margin-top:0">So gibt's Punkte – alles wird addiert</div>
+      <div class="section-title" style="margin-top:0">So gibt's Punkte</div>
+      <div class="rules-sub">Gruppenphase · alles wird addiert</div>
       <ul class="rules-list">
-        <li><span>Richtige Tendenz (Sieger oder Remis)</span><b>+${p.winner}</b></li>
+        <li><span>Richtige Tendenz (Sieger/Remis)</span><b>+${p.winner}</b></li>
         <li><span>Richtige Tordifferenz</span><b>+${p.difference}</b></li>
-        <li><span>Richtige Tore Heimteam</span><b>+${p.goalPerTeam}</b></li>
-        <li><span>Richtige Tore Gastteam</span><b>+${p.goalPerTeam}</b></li>
+        <li><span>Richtige Tore je Team</span><b>+${p.goalPerTeam}</b></li>
       </ul>
-      <div class="rules-foot">Tipp komplett richtig = <b>${exact} Punkte</b></div>
+      <div class="rules-foot">Exakt = <b>${gExact} Punkte</b></div>
+      <div class="rules-sub" style="margin-top:16px">K.o.-Phase · nur das Höchste zählt</div>
+      <ul class="rules-list">
+        <li><span>Exakt</span><b>${k.exact}</b></li>
+        <li><span>Richtige Tordifferenz</span><b>${k.difference}</b></li>
+        <li><span>Richtiger Sieger / Remis</span><b>${k.winner}</b></li>
+        <li><span>Eine Toranzahl richtig</span><b>${k.goalPerTeam}</b></li>
+      </ul>
     </div>`));
 }
 
