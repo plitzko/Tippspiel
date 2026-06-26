@@ -117,7 +117,6 @@ app.get("/api/matches", requireUser, (req, res) => {
       away: m.away,
       kickoff: m.kickoff,
       stage: m.stage || "",
-      location: m.location || null,
       homeScore: m.homeScore,
       awayScore: m.awayScore,
       started,
