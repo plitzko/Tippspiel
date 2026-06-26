@@ -608,20 +608,6 @@ async function renderStandings(content) {
 
   content.innerHTML = "";
 
-  // Aktualisieren-Leiste (Ergebnisse kommen automatisch, hier manuell nachhelfen)
-  const syncBar = el(`
-    <div class="sync-bar">
-      <span class="muted">Aktualisiert sich automatisch</span>
-      <button class="btn small secondary" id="sync-btn">🔄 Aktualisieren</button>
-    </div>`);
-  content.appendChild(syncBar);
-  syncBar.querySelector("#sync-btn").onclick = async (ev) => {
-    const btn = ev.currentTarget;
-    btn.disabled = true; btn.textContent = "⏳ …";
-    try { await api("POST", "/api/results/sync"); renderStandings(content); }
-    catch (e) { btn.disabled = false; btn.textContent = "🔄 Aktualisieren"; }
-  };
-
   // Phasen-Tabs (Standard = aktuelle Phase)
   const sub = el(`
     <div class="subtabs">
