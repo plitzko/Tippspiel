@@ -841,27 +841,27 @@ async function renderStandings(content) {
     }
   }
 
-  // Punkte-Regeln (beide Phasen)
+  // Punkte-Regeln – nur für die gewählte Phase
   const p = state.points, k = state.koPoints;
   const gExact = p.winner + p.difference + 2 * p.goalPerTeam;
-  content.appendChild(el(`
-    <div class="card rules">
-      <div class="section-title" style="margin-top:0">So gibt's Punkte</div>
-      <div class="rules-sub">Gruppenphase · alles wird addiert</div>
-      <ul class="rules-list">
-        <li><span>Richtige Tendenz (Sieger/Remis)</span><b>+${p.winner}</b></li>
-        <li><span>Richtige Tordifferenz</span><b>+${p.difference}</b></li>
-        <li><span>Richtige Tore je Team</span><b>+${p.goalPerTeam}</b></li>
-      </ul>
-      <div class="rules-foot">Exakt = <b>${gExact} Punkte</b></div>
-      <div class="rules-sub" style="margin-top:16px">K.o.-Phase · nur das Höchste zählt</div>
-      <ul class="rules-list">
-        <li><span>Exakt</span><b>${k.exact}</b></li>
-        <li><span>Richtige Tordifferenz</span><b>${k.difference}</b></li>
-        <li><span>Richtiger Sieger / Remis</span><b>${k.winner}</b></li>
-        <li><span>Eine Toranzahl richtig</span><b>${k.goalPerTeam}</b></li>
-      </ul>
-    </div>`));
+  const rulesHtml = phase === "ko"
+    ? `<div class="section-title" style="margin-top:0">So gibt's Punkte – K.o.-Phase</div>
+       <div class="rules-sub">Nur das Höchste zählt</div>
+       <ul class="rules-list">
+         <li><span>Exakt</span><b>${k.exact}</b></li>
+         <li><span>Richtige Tordifferenz</span><b>${k.difference}</b></li>
+         <li><span>Richtiger Sieger / Remis</span><b>${k.winner}</b></li>
+         <li><span>Eine Toranzahl richtig</span><b>${k.goalPerTeam}</b></li>
+       </ul>`
+    : `<div class="section-title" style="margin-top:0">So gibt's Punkte – Gruppenphase</div>
+       <div class="rules-sub">Alles wird addiert</div>
+       <ul class="rules-list">
+         <li><span>Richtige Tendenz (Sieger/Remis)</span><b>+${p.winner}</b></li>
+         <li><span>Richtige Tordifferenz</span><b>+${p.difference}</b></li>
+         <li><span>Richtige Tore je Team</span><b>+${p.goalPerTeam}</b></li>
+       </ul>
+       <div class="rules-foot">Exakt = <b>${gExact} Punkte</b></div>`;
+  content.appendChild(el(`<div class="card rules">${rulesHtml}</div>`));
 }
 
 // ============ Turnier: Gruppentabellen + K.o.-Baum ============
