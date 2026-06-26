@@ -611,34 +611,7 @@ function matchCard(m) {
     }
   }
 
-  card.appendChild(reactionBar(m));
   return card;
-}
-
-const REACTION_EMOJIS = ["🔥", "😂", "😮", "😢", "👏", "💪"];
-function reactionBar(m) {
-  const bar = el(`<div class="reactions"></div>`);
-  for (const emoji of REACTION_EMOJIS) {
-    const btn = el(`<button class="react-btn" type="button"><span class="remoji">${emoji}</span><span class="rdots"></span></button>`);
-    const paint = () => {
-      const who = (m.reactions || []).filter(r => r.emoji === emoji);
-      btn.classList.toggle("active", who.some(r => r.userId === state.user.id));
-      btn.querySelector(".rdots").innerHTML = who.map(r => `<span class="rdot" style="background:${themeFor(r.name).color}"></span>`).join("");
-    };
-    paint();
-    btn.onclick = async () => {
-      try {
-        await api("POST", "/api/reactions", { matchId: m.id, emoji });
-        m.reactions = m.reactions || [];
-        const i = m.reactions.findIndex(r => r.userId === state.user.id && r.emoji === emoji);
-        if (i >= 0) m.reactions.splice(i, 1);
-        else m.reactions.push({ userId: state.user.id, name: state.user.name, emoji });
-        paint();
-      } catch (e) { /* still */ }
-    };
-    bar.appendChild(btn);
-  }
-  return bar;
 }
 
 function tipCard(t, m) {
@@ -917,7 +890,7 @@ async function renderTurnier(content) {
   });
 
   if (view === "gruppen") renderGroupTables(content, matches);
-  else renderBracket(content, matches, isKoStage);
+  else renderBracketTree(content);
 }
 
 function renderGroupTables(content, matches) {
@@ -962,31 +935,87 @@ function renderGroupTables(content, matches) {
   }
 }
 
-const KO_ORDER = ["Sechzehntelfinale", "Achtelfinale", "Viertelfinale", "Halbfinale", "Spiel um Platz 3", "Finale"];
-function renderBracket(content, matches, isKoStage) {
-  const ko = matches.filter(m => isKoStage(m.stage)).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
-  if (!ko.length) { content.appendChild(el(`<div class="empty">Der K.o.-Baum erscheint, sobald die Teilnehmer feststehen.</div>`)); return; }
+const KO_LABELS = { 4: "Sechzehntelfinale", 5: "Achtelfinale", 6: "Viertelfinale", 7: "Halbfinale", 8: "Finale" };
+async function renderBracketTree(content) {
+  const loading = el(`<div class="empty">Lade K.o.-Baum…</div>`);
+  content.appendChild(loading);
+  let data;
+  try { data = await api("GET", "/api/bracket"); }
+  catch (e) { loading.textContent = e.message; return; }
+  loading.remove();
+  const ko = data.bracket || [];
+  if (!ko.length) { content.appendChild(el(`<div class="empty">K.o.-Plan noch nicht verfügbar.</div>`)); return; }
+
+  const third = ko.find(m => m.stage === "Spiel um Platz 3");
+  const tree = ko.filter(m => m.stage !== "Spiel um Platz 3");
   const byRound = {};
-  for (const m of ko) (byRound[m.stage] = byRound[m.stage] || []).push(m);
-  const rounds = Object.keys(byRound).sort((a, b) => {
-    const ia = KO_ORDER.indexOf(a), ib = KO_ORDER.indexOf(b);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
-  for (const r of rounds) {
-    content.appendChild(el(`<div class="section-title" style="margin-top:16px">${esc(r)}</div>`));
-    for (const m of byRound[r]) content.appendChild(bracketMatch(m));
+  for (const m of tree) (byRound[m.round] = byRound[m.round] || []).push(m);
+  for (const r in byRound) byRound[r].sort((a, b) => a.matchNumber - b.matchNumber);
+
+  const scroll = el(`<div class="bracket-scroll"></div>`);
+  const bracket = el(`<div class="bracket"><svg class="bracket-lines" aria-hidden="true"></svg></div>`);
+  scroll.appendChild(bracket);
+  for (const r of [4, 5, 6, 7, 8]) {
+    const ms = byRound[r];
+    if (!ms || !ms.length) continue;
+    const col = el(`<div class="bround"></div>`);
+    col.appendChild(el(`<div class="bround-title">${KO_LABELS[r] || ""}</div>`));
+    const body = el(`<div class="bround-body"></div>`);
+    for (const m of ms) body.appendChild(bracketCell(m));
+    col.appendChild(body);
+    bracket.appendChild(col);
+  }
+  content.appendChild(scroll);
+  requestAnimationFrame(() => requestAnimationFrame(() => drawBracketLines(bracket)));
+
+  if (third) {
+    content.appendChild(el(`<div class="section-title" style="margin-top:18px">Spiel um Platz 3</div>`));
+    content.appendChild(bracketCell(third, true));
   }
 }
-function bracketMatch(m) {
+
+function bracketCell(m, standalone) {
   const done = m.homeScore != null && m.awayScore != null;
   const hw = done && m.homeScore > m.awayScore, aw = done && m.awayScore > m.homeScore;
+  const row = (name, score, win) => `
+    <div class="bc-row ${win ? "win" : (done && name ? "lose" : "")}">
+      ${name ? flagHtml(name) : `<span class="flag flag-empty"></span>`}
+      <span class="bc-name ${name ? "" : "open"}">${name ? esc(name) : "offen"}</span>
+      <span class="bc-score">${done ? score : ""}</span>
+    </div>`;
   const dt = new Date(m.kickoff).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
   return el(`
-    <div class="card bm">
-      <div class="bm-row ${hw ? "win" : (done ? "lose" : "")}">${flagHtml(m.home)}<span class="bm-name">${esc(m.home)}</span><span class="bm-score">${done ? m.homeScore : "–"}</span></div>
-      <div class="bm-row ${aw ? "win" : (done ? "lose" : "")}">${flagHtml(m.away)}<span class="bm-name">${esc(m.away)}</span><span class="bm-score">${done ? m.awayScore : "–"}</span></div>
-      <div class="bm-meta">${dt} · ${fmtTime(m.kickoff)} Uhr</div>
+    <div class="bcell ${standalone ? "standalone" : ""}">
+      ${row(m.home, m.homeScore, hw)}
+      ${row(m.away, m.awayScore, aw)}
+      <div class="bc-date">${dt}</div>
     </div>`);
+}
+
+// Verbindungslinien als SVG nachträglich aus den Zellpositionen zeichnen
+function drawBracketLines(bracket) {
+  const svg = bracket.querySelector(".bracket-lines");
+  if (!svg) return;
+  const W = bracket.scrollWidth, H = bracket.scrollHeight;
+  svg.setAttribute("width", W); svg.setAttribute("height", H);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const rounds = [...bracket.querySelectorAll(".bround")];
+  let paths = "";
+  for (let r = 0; r < rounds.length - 1; r++) {
+    const cur = [...rounds[r].querySelectorAll(".bcell")];
+    const nxt = [...rounds[r + 1].querySelectorAll(".bcell")];
+    for (let i = 0; i < nxt.length; i++) {
+      const p = nxt[i]; if (!p) continue;
+      const px = p.offsetLeft, pyc = p.offsetTop + p.offsetHeight / 2;
+      for (const c of [cur[i * 2], cur[i * 2 + 1]]) {
+        if (!c) continue;
+        const cx = c.offsetLeft + c.offsetWidth, cy = c.offsetTop + c.offsetHeight / 2;
+        const mid = (cx + px) / 2;
+        paths += `<path d="M${cx},${cy} H${mid} V${pyc} H${px}"/>`;
+      }
+    }
+  }
+  svg.innerHTML = paths;
 }
 
 init();

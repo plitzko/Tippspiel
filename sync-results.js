@@ -34,6 +34,28 @@ const TEAMS_DE = {
 };
 const de = (name) => TEAMS_DE[name] || name;
 
+// Kompletter K.o.-Plan aus dem Feed – inkl. noch unbestimmter Paarungen (home/away = null = "offen").
+// Fuer die Bracket-Ansicht.
+export async function fetchBracket() {
+  const res = await fetch(FEED_URL, { headers: { "User-Agent": "WM-Tippspiel" } });
+  if (!res.ok) throw new Error(`Feed nicht erreichbar (HTTP ${res.status})`);
+  const feed = await res.json();
+  const maxNo = feed.reduce((m, f) => Math.max(m, f.MatchNumber || 0), 0);
+  return feed
+    .filter(f => !(f.Group && String(f.Group).startsWith("Group")))
+    .map(f => ({
+      matchNumber: f.MatchNumber,
+      round: f.RoundNumber,
+      stage: koStage(f, maxNo),
+      home: TEAMS_DE[f.HomeTeam] || null,   // null => Teilnehmer noch offen
+      away: TEAMS_DE[f.AwayTeam] || null,
+      homeScore: f.HomeTeamScore != null ? f.HomeTeamScore : null,
+      awayScore: f.AwayTeamScore != null ? f.AwayTeamScore : null,
+      kickoff: koKickoff(f)
+    }))
+    .sort((a, b) => a.matchNumber - b.matchNumber);
+}
+
 // Holt den Feed und aktualisiert die DB (mutiert db.matches):
 //  - Gruppenspiele: Ergebnisse per Teamnamen zuordnen
 //  - K.o.-Spiele: eintragen/aktualisieren, sobald beide Teams feststehen (per Spielnummer)

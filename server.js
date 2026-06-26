@@ -3,7 +3,7 @@ import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import { load, saveSync } from "./db.js";
-import { syncResults } from "./sync-results.js";
+import { syncResults, fetchBracket } from "./sync-results.js";
 import { breakdownFor, pointsFor, isKnockout } from "./scoring.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -122,27 +122,23 @@ app.get("/api/matches", requireUser, (req, res) => {
       started,
       locked: started,
       myTip: myTip ? { home: myTip.home, away: myTip.away } : null,
-      tips: visibleTips,
-      reactions: db.reactions
-        .filter(r => r.matchId === m.id)
-        .map(r => ({ userId: r.userId, name: (db.users.find(u => u.id === r.userId) || {}).name || "?", emoji: r.emoji }))
+      tips: visibleTips
     };
   });
   res.json({ matches: result });
 });
 
-// Emoji-Reaktion auf ein Spiel an-/abschalten (Toggle)
-const REACTIONS = ["🔥", "😂", "😮", "😢", "👏", "💪"];
-app.post("/api/reactions", requireUser, (req, res) => {
-  const { matchId, emoji } = req.body || {};
-  if (!matchId || !emoji) return res.status(400).json({ error: "matchId und emoji noetig" });
-  if (!REACTIONS.includes(emoji)) return res.status(400).json({ error: "Emoji nicht erlaubt" });
-  if (!db.matches.find(m => m.id === matchId)) return res.status(404).json({ error: "Spiel nicht gefunden" });
-  const i = db.reactions.findIndex(r => r.matchId === matchId && r.userId === req.user.id && r.emoji === emoji);
-  if (i >= 0) db.reactions.splice(i, 1);
-  else db.reactions.push({ matchId, userId: req.user.id, emoji });
-  persist();
-  res.json({ ok: true });
+// Kompletter K.o.-Baum aus dem Feed (inkl. noch offener Paarungen), kurz gecacht
+let bracketCache = { at: 0, data: null };
+app.get("/api/bracket", requireUser, async (req, res) => {
+  try {
+    if (!bracketCache.data || Date.now() - bracketCache.at > 180000) {
+      bracketCache = { at: Date.now(), data: await fetchBracket() };
+    }
+    res.json({ bracket: bracketCache.data });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
 });
 
 // Tipp abgeben/aendern (nur vor Anpfiff)
