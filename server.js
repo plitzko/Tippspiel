@@ -54,12 +54,25 @@ app.get("/api/status", (req, res) => {
     }
     return pts;
   };
+  // Turnierende + Gesamtsieger (Gruppen- plus K.o.-Punkte)
+  const finalMatch = db.matches.find(m => m.stage === "Finale");
+  const tournamentOver = !!(finalMatch && finalMatch.homeScore != null && finalMatch.awayScore != null);
+  let champion = null;
+  if (tournamentOver) {
+    const totals = db.users
+      .map(u => ({ name: u.name, pts: phasePoints(u, false) + phasePoints(u, true) }))
+      .sort((a, b) => b.pts - a.pts);
+    champion = (totals.length >= 2 && totals[0].pts === totals[1].pts) ? "tie" : (totals[0] ? totals[0].name : null);
+  }
+
   res.json({
     players: db.users.map(u => ({ ...publicUser(u), group: phasePoints(u, false), ko: phasePoints(u, true) })),
     phase: koExists ? "ko" : "group",
     canAddPlayer: db.users.length < MAX_USERS,
     points: db.config.points,
-    ko: db.config.ko
+    ko: db.config.ko,
+    tournamentOver,
+    champion
   });
 });
 
@@ -109,10 +122,27 @@ app.get("/api/matches", requireUser, (req, res) => {
       started,
       locked: started,
       myTip: myTip ? { home: myTip.home, away: myTip.away } : null,
-      tips: visibleTips
+      tips: visibleTips,
+      reactions: db.reactions
+        .filter(r => r.matchId === m.id)
+        .map(r => ({ userId: r.userId, name: (db.users.find(u => u.id === r.userId) || {}).name || "?", emoji: r.emoji }))
     };
   });
   res.json({ matches: result });
+});
+
+// Emoji-Reaktion auf ein Spiel an-/abschalten (Toggle)
+const REACTIONS = ["🔥", "😂", "😮", "😢", "👏", "💪"];
+app.post("/api/reactions", requireUser, (req, res) => {
+  const { matchId, emoji } = req.body || {};
+  if (!matchId || !emoji) return res.status(400).json({ error: "matchId und emoji noetig" });
+  if (!REACTIONS.includes(emoji)) return res.status(400).json({ error: "Emoji nicht erlaubt" });
+  if (!db.matches.find(m => m.id === matchId)) return res.status(404).json({ error: "Spiel nicht gefunden" });
+  const i = db.reactions.findIndex(r => r.matchId === matchId && r.userId === req.user.id && r.emoji === emoji);
+  if (i >= 0) db.reactions.splice(i, 1);
+  else db.reactions.push({ matchId, userId: req.user.id, emoji });
+  persist();
+  res.json({ ok: true });
 });
 
 // Tipp abgeben/aendern (nur vor Anpfiff)

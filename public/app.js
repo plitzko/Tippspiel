@@ -9,8 +9,11 @@ const state = {
   points: { difference: 2, winner: 1, goalPerTeam: 1 },
   koPoints: { exact: 5, difference: 3, winner: 2, goalPerTeam: 1 },
   standingsPhase: null,        // welche Phase ist in der Rangliste offen
-  standingsPhaseUserSet: false // hat der Nutzer manuell umgeschaltet?
+  standingsPhaseUserSet: false, // hat der Nutzer manuell umgeschaltet?
+  turnierView: null,           // "gruppen" | "baum"
+  turnierViewUserSet: false
 };
+let trophyShown = false;       // Pokal-Animation nur einmal pro Sitzung
 
 async function api(method, url, body) {
   const headers = { "Content-Type": "application/json" };
@@ -58,6 +61,7 @@ async function livePoll() {
   const content = document.getElementById("content");
   if (!content) return;
   if (state.tab === "tippen") renderMatches(content);
+  else if (state.tab === "turnier") renderTurnier(content);
   else renderStandings(content);
 }
 
@@ -105,6 +109,47 @@ const ICON_CROWN = `
   <circle cx="21.4" cy="8.4" r="1.6" fill="#f5c84b"/>
   <circle cx="12" cy="4.2" r="1.7" fill="#f5c84b"/>
 </svg>`;
+const ICON_TROPHY = `
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" class="ic-trophy">
+  <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe79a"/><stop offset="1" stop-color="#e0a82e"/></linearGradient></defs>
+  <path d="M19 8h26v9a13 13 0 0 1-26 0z" fill="url(#tg)" stroke="#b9851f" stroke-width="1.5"/>
+  <path d="M19 12h-8a7 7 0 0 0 7 9" fill="none" stroke="#d9a32a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M45 12h8a7 7 0 0 1-7 9" fill="none" stroke="#d9a32a" stroke-width="3" stroke-linecap="round"/>
+  <rect x="29" y="30" width="6" height="9" fill="#d9a32a"/>
+  <rect x="22" y="39" width="20" height="5" rx="2" fill="#caa133"/>
+  <rect x="17" y="44" width="30" height="7" rx="3" fill="#b9851f"/>
+  <path d="M27 11.5l1.6 3.3 3.6.5-2.6 2.6.6 3.6L27 18.3l-3.2 1.7.6-3.6-2.6-2.6 3.6-.5z" fill="#fff7d6" opacity=".9"/>
+</svg>`;
+
+// große Pokal-Animation für den Gesamtsieger (einmal pro Sitzung)
+function playTrophy(name) {
+  if (trophyShown) return;
+  trophyShown = true;
+  const tie = name === "tie";
+  const color = tie ? "#f5b301" : themeFor(name).color;
+  const ov = el(`
+    <div class="trophy-ov" style="--pc:${color}">
+      <div class="trophy-inner">
+        <div class="trophy-cup">${ICON_TROPHY}</div>
+        <div class="trophy-kicker">${tie ? "Turnier zu Ende" : "🏆 Gesamtsieger"}</div>
+        <div class="trophy-name">${tie ? "Unentschieden!" : esc(name)}</div>
+        <div class="trophy-sub">Glückwunsch zur WM 2026! ⚽</div>
+        <button class="btn trophy-close">Schließen</button>
+      </div>
+    </div>`);
+  document.body.appendChild(ov);
+  ov.querySelector(".trophy-close").onclick = () => ov.remove();
+  ov.addEventListener("click", (e) => { if (e.target === ov) ov.remove(); });
+  if (!reducedMotion()) {
+    let n = 0;
+    const burst = () => {
+      if (n++ > 5 || !document.body.contains(ov)) return;
+      confettiBurst(ov.querySelector(".trophy-cup"));
+      setTimeout(burst, 650);
+    };
+    setTimeout(burst, 200);
+  }
+}
 
 // ---- Konfetti bei exaktem Tipp (einmal je Spiel pro Sitzung) ----
 const celebrated = new Set();
@@ -264,6 +309,8 @@ async function init() {
   const me = status.players.find(p => p.id === state.userId);
   if (me) { state.user = me; renderApp(); }
   else { setUser(null); applyTheme(null); renderPlayerSelect(status); }
+
+  if (status.tournamentOver && status.champion) setTimeout(() => playTrophy(status.champion), 700);
 }
 
 // ============ "Wer bist du?" ============
@@ -362,7 +409,7 @@ function renderApp() {
   applyTheme(state.user.name);
   document.body.classList.remove("on-login");
   if (state.tab === "ergebnisse") state.tab = "rangliste";
-  const tabs = [["tippen", "⚽ Tippen"], ["rangliste", "🏆 Rangliste"]];
+  const tabs = [["tippen", "⚽ Tippen"], ["rangliste", "🏆 Rangliste"], ["turnier", "🏟️ Turnier"]];
 
   const view = el(`
     <div>
@@ -391,6 +438,7 @@ function renderApp() {
 
   const content = view.querySelector("#content");
   if (state.tab === "tippen") renderMatches(content);
+  else if (state.tab === "turnier") renderTurnier(content);
   else renderStandings(content);
 }
 
@@ -562,7 +610,35 @@ function matchCard(m) {
       setTimeout(() => confettiBurst(card), 350);
     }
   }
+
+  card.appendChild(reactionBar(m));
   return card;
+}
+
+const REACTION_EMOJIS = ["🔥", "😂", "😮", "😢", "👏", "💪"];
+function reactionBar(m) {
+  const bar = el(`<div class="reactions"></div>`);
+  for (const emoji of REACTION_EMOJIS) {
+    const btn = el(`<button class="react-btn" type="button"><span class="remoji">${emoji}</span><span class="rdots"></span></button>`);
+    const paint = () => {
+      const who = (m.reactions || []).filter(r => r.emoji === emoji);
+      btn.classList.toggle("active", who.some(r => r.userId === state.user.id));
+      btn.querySelector(".rdots").innerHTML = who.map(r => `<span class="rdot" style="background:${themeFor(r.name).color}"></span>`).join("");
+    };
+    paint();
+    btn.onclick = async () => {
+      try {
+        await api("POST", "/api/reactions", { matchId: m.id, emoji });
+        m.reactions = m.reactions || [];
+        const i = m.reactions.findIndex(r => r.userId === state.user.id && r.emoji === emoji);
+        if (i >= 0) m.reactions.splice(i, 1);
+        else m.reactions.push({ userId: state.user.id, name: state.user.name, emoji });
+        paint();
+      } catch (e) { /* still */ }
+    };
+    bar.appendChild(btn);
+  }
+  return bar;
 }
 
 function tipCard(t, m) {
@@ -813,6 +889,104 @@ async function renderStandings(content) {
         <li><span>Eine Toranzahl richtig</span><b>${k.goalPerTeam}</b></li>
       </ul>
     </div>`));
+}
+
+// ============ Turnier: Gruppentabellen + K.o.-Baum ============
+async function renderTurnier(content) {
+  showSkeleton(content, 2);
+  let data;
+  try { data = await api("GET", "/api/matches"); }
+  catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
+  const matches = data.matches;
+  liveSig = resultsSignature(matches);
+
+  const isKoStage = (st) => !!st && !st.startsWith("Gruppe");
+  const koExists = matches.some(m => isKoStage(m.stage));
+  if (!state.turnierViewUserSet) state.turnierView = koExists ? "baum" : "gruppen";
+  const view = state.turnierView || "gruppen";
+
+  content.innerHTML = "";
+  const sub = el(`
+    <div class="subtabs">
+      <button data-v="gruppen" class="${view === "gruppen" ? "active" : ""}">Gruppen</button>
+      <button data-v="baum" class="${view === "baum" ? "active" : ""}">K.o.-Baum</button>
+    </div>`);
+  content.appendChild(sub);
+  sub.querySelectorAll("button").forEach(b => b.onclick = () => {
+    state.turnierView = b.dataset.v; state.turnierViewUserSet = true; renderTurnier(content);
+  });
+
+  if (view === "gruppen") renderGroupTables(content, matches);
+  else renderBracket(content, matches, isKoStage);
+}
+
+function renderGroupTables(content, matches) {
+  const groups = {};
+  for (const m of matches) {
+    if (!m.stage || !m.stage.startsWith("Gruppe ")) continue;
+    const g = m.stage.slice("Gruppe ".length).trim();
+    groups[g] = groups[g] || {};
+    for (const name of [m.home, m.away]) groups[g][name] = groups[g][name] || { name, sp: 0, s: 0, u: 0, n: 0, tf: 0, ta: 0, pkt: 0 };
+    if (m.homeScore != null && m.awayScore != null) {
+      const H = groups[g][m.home], A = groups[g][m.away];
+      H.sp++; A.sp++; H.tf += m.homeScore; H.ta += m.awayScore; A.tf += m.awayScore; A.ta += m.homeScore;
+      if (m.homeScore > m.awayScore) { H.s++; A.n++; H.pkt += 3; }
+      else if (m.homeScore < m.awayScore) { A.s++; H.n++; A.pkt += 3; }
+      else { H.u++; A.u++; H.pkt++; A.pkt++; }
+    }
+  }
+  const keys = Object.keys(groups).sort();
+  if (!keys.length) { content.appendChild(el(`<div class="empty">Noch keine Gruppenspiele.</div>`)); return; }
+  for (const g of keys) {
+    const rows = Object.values(groups[g]).map(t => ({ ...t, diff: t.tf - t.ta }))
+      .sort((a, b) => b.pkt - a.pkt || b.diff - a.diff || b.tf - a.tf || a.name.localeCompare(b.name));
+    const body = rows.map((t, i) => `
+      <div class="gt-row ${i < 2 ? "q" : ""}">
+        <span class="gt-pos">${i + 1}</span>
+        <span class="gt-team">${flagHtml(t.name)}<span class="gt-name">${esc(t.name)}</span></span>
+        <span class="gt-num">${t.sp}</span>
+        <span class="gt-num">${t.diff > 0 ? "+" : ""}${t.diff}</span>
+        <span class="gt-num gt-pkt">${t.pkt}</span>
+      </div>`).join("");
+    content.appendChild(el(`
+      <div class="card gt-card">
+        <div class="gt-row gt-head">
+          <span class="gt-pos"></span>
+          <span class="gt-title">Gruppe ${esc(g)}</span>
+          <span class="gt-num">Sp</span>
+          <span class="gt-num">Diff</span>
+          <span class="gt-num">Pkt</span>
+        </div>
+        ${body}
+      </div>`));
+  }
+}
+
+const KO_ORDER = ["Sechzehntelfinale", "Achtelfinale", "Viertelfinale", "Halbfinale", "Spiel um Platz 3", "Finale"];
+function renderBracket(content, matches, isKoStage) {
+  const ko = matches.filter(m => isKoStage(m.stage)).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
+  if (!ko.length) { content.appendChild(el(`<div class="empty">Der K.o.-Baum erscheint, sobald die Teilnehmer feststehen.</div>`)); return; }
+  const byRound = {};
+  for (const m of ko) (byRound[m.stage] = byRound[m.stage] || []).push(m);
+  const rounds = Object.keys(byRound).sort((a, b) => {
+    const ia = KO_ORDER.indexOf(a), ib = KO_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  for (const r of rounds) {
+    content.appendChild(el(`<div class="section-title" style="margin-top:16px">${esc(r)}</div>`));
+    for (const m of byRound[r]) content.appendChild(bracketMatch(m));
+  }
+}
+function bracketMatch(m) {
+  const done = m.homeScore != null && m.awayScore != null;
+  const hw = done && m.homeScore > m.awayScore, aw = done && m.awayScore > m.homeScore;
+  const dt = new Date(m.kickoff).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  return el(`
+    <div class="card bm">
+      <div class="bm-row ${hw ? "win" : (done ? "lose" : "")}">${flagHtml(m.home)}<span class="bm-name">${esc(m.home)}</span><span class="bm-score">${done ? m.homeScore : "–"}</span></div>
+      <div class="bm-row ${aw ? "win" : (done ? "lose" : "")}">${flagHtml(m.away)}<span class="bm-name">${esc(m.away)}</span><span class="bm-score">${done ? m.awayScore : "–"}</span></div>
+      <div class="bm-meta">${dt} · ${fmtTime(m.kickoff)} Uhr</div>
+    </div>`);
 }
 
 init();

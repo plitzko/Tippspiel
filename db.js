@@ -11,6 +11,7 @@ const DEFAULT_DATA = {
   users: [],
   matches: [],
   tips: [],
+  reactions: [],
   sessions: [],
   config: {
     // Gruppenphase (additiv): Tendenz + Differenz + je Mannschafts-Toranzahl, exakt = 5
