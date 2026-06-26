@@ -541,9 +541,10 @@ function centerHtml(m) {
 
 function matchCard(m) {
   const card = el(`<div class="card match ${m.locked ? "locked" : "open"}"></div>`);
-  const status = !m.locked
-    ? `<span class="status">${fmtTime(m.kickoff)} Uhr</span>`
-    : (m.homeScore != null ? `<span class="status final">🔒 Endstand</span>` : `<span class="status live"><span class="live-dot"></span>LIVE</span>`);
+  const status = m.locked
+    ? (m.homeScore != null ? `<span class="status final">🔒 Endstand</span>` : `<span class="status live"><span class="live-dot"></span>LIVE</span>`)
+    : "";
+  const meta = `<span>🕒 ${fmtTime(m.kickoff)} Uhr</span>${m.location ? `<span>📍 ${esc(m.location)}</span>` : ""}`;
 
   card.innerHTML = `
     <div class="match-head">
@@ -555,6 +556,7 @@ function matchCard(m) {
       ${centerHtml(m)}
       ${sideHtml(m.away, "away")}
     </div>
+    <div class="match-meta">${meta}</div>
   `;
 
   if (!m.locked) {
@@ -988,7 +990,8 @@ function bracketCell(m, standalone) {
     <div class="bcell ${standalone ? "standalone" : ""}">
       ${row(m.home, m.homeScore, hw)}
       ${row(m.away, m.awayScore, aw)}
-      <div class="bc-date">${dt}</div>
+      <div class="bc-date">${dt} · ${fmtTime(m.kickoff)}</div>
+      ${m.location ? `<div class="bc-venue">📍 ${esc(m.location)}</div>` : ""}
     </div>`);
 }
 

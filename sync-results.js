@@ -51,7 +51,8 @@ export async function fetchBracket() {
       away: TEAMS_DE[f.AwayTeam] || null,
       homeScore: f.HomeTeamScore != null ? f.HomeTeamScore : null,
       awayScore: f.AwayTeamScore != null ? f.AwayTeamScore : null,
-      kickoff: koKickoff(f)
+      kickoff: koKickoff(f),
+      location: f.Location || null
     }))
     .sort((a, b) => a.matchNumber - b.matchNumber);
 }
@@ -85,6 +86,7 @@ export async function syncResults(db) {
     if (isGroup) {
       const match = byPair.get(`${de(f.HomeTeam)}|${de(f.AwayTeam)}`);
       if (!match) { if (f.HomeTeamScore != null) notFound++; continue; }
+      if (f.Location) match.location = f.Location;
       applyScore(match, f);
     } else {
       // K.o.-Spiel: erst aufnehmen, wenn beide Teams bekannt sind
@@ -98,6 +100,7 @@ export async function syncResults(db) {
           home: homeDe, away: awayDe,
           kickoff: koKickoff(f),
           stage: koStage(f, maxNo),
+          location: f.Location || null,
           homeScore: null, awayScore: null
         };
         db.matches.push(match);
@@ -106,6 +109,7 @@ export async function syncResults(db) {
         match.home = homeDe; match.away = awayDe;
         match.stage = koStage(f, maxNo);
         if (f.DateUtc) match.kickoff = koKickoff(f);
+        if (f.Location) match.location = f.Location;
       }
       applyScore(match, f);
     }
