@@ -483,3 +483,10 @@ body.on-login .login-sub { color: #cfe6d4; }
 .bc-row.win .bc-score { color: var(--green); }
 .bc-row.lose { opacity: .5; }
 .bc-date { text-align: center; font-size: 10px; color: var(--muted-2); margin-top: 3px; }
+
+/* ---------- Header-Avatar (Herzregen beim Antippen) ---------- */
+.userbox { display: flex; align-items: center; gap: 8px; }
+.header-av { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; transition: transform .12s;
+  background: color-mix(in srgb, var(--pc) 22%, var(--soft)); border: 1.5px solid color-mix(in srgb, var(--pc) 55%, var(--border)); }
+.header-av svg { width: 26px; height: 26px; }
+.header-av:active { transform: scale(.92); }

@@ -418,7 +418,10 @@ function renderApp() {
           <span class="logo" id="logo" title="✨">⚽</span>
           <div class="brand-text"><h1>${TITLE}</h1><small>WM 2026</small></div>
         </div>
-        <button class="icon-btn" id="switch" title="Spieler wechseln" aria-label="Spieler wechseln">${ICON_EXIT}</button>
+        <div class="userbox">
+          <span class="header-av" id="avatar" style="--pc:${themeFor(state.user.name).color}" title="Tipp mich an 💞">${playerIcon(state.user.name)}</span>
+          <button class="icon-btn" id="switch" title="Spieler wechseln" aria-label="Spieler wechseln">${ICON_EXIT}</button>
+        </div>
       </div>
       <div class="tabs" id="tabs"></div>
       <div id="content"></div>
@@ -435,6 +438,9 @@ function renderApp() {
   }
   view.querySelector("#switch").onclick = () => { setUser(null); init(); };
   view.querySelector("#logo").onclick = () => easterEgg(state.user.name);
+  view.querySelector("#avatar").onclick = () => {
+    if (!reducedMotion()) rainEmojis(["💕", "💖", "❤️", "💗", "💞", "🌹"], 24, 2300);
+  };
 
   const content = view.querySelector("#content");
   if (state.tab === "tippen") renderMatches(content);
@@ -1025,4 +1031,4 @@ setInterval(() => {
   if (state.user && isLina(state.user.name) && !reducedMotion() && document.visibilityState === "visible") {
     wavingBearCorner();
   }
-}, 30000);
+}, 10000);
