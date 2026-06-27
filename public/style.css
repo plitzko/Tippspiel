@@ -483,3 +483,22 @@ body.on-login .login-sub { color: #cfe6d4; }
 .bc-row.win .bc-score { color: var(--green); }
 .bc-row.lose { opacity: .5; }
 .bc-date { text-align: center; font-size: 10px; color: var(--muted-2); margin-top: 3px; }
+
+/* ---------- Header-Avatar (Long-Press-Easter-Egg) ---------- */
+.userbox { display: flex; align-items: center; gap: 8px; }
+.header-av { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; transition: transform .12s;
+  background: color-mix(in srgb, var(--pc) 22%, var(--soft)); border: 1.5px solid color-mix(in srgb, var(--pc) 55%, var(--border)); }
+.header-av svg { width: 26px; height: 26px; }
+.header-av:active { transform: scale(.92); }
+
+/* ---------- Toast-Nachrichten (Easter Eggs) ---------- */
+.toast { position: fixed; top: 16%; left: 50%; transform: translateX(-50%); z-index: 10001; max-width: 86vw; text-align: center;
+  padding: 14px 20px; border-radius: 16px; font-size: 16px; font-weight: 800; color: var(--text); pointer-events: none;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface)); border: 1px solid var(--line); box-shadow: 0 16px 40px -16px rgba(0,0,0,.7);
+  animation: toastIn .3s ease both; }
+.toast.out { animation: toastOut .3s ease both; }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, -8px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translate(-50%, -8px) scale(.96); } }
+.toast.love { border-color: color-mix(in srgb, #ec4899 50%, var(--border)); box-shadow: 0 16px 44px -14px rgba(236,72,153,.5); }
+.toast.maxi { color: #ffdada; border-color: color-mix(in srgb, #ff3a3a 45%, var(--border)); box-shadow: 0 16px 44px -14px rgba(255,40,40,.45); }
+.toast-sub { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-top: 4px; }

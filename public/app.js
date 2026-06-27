@@ -233,6 +233,50 @@ function easterEgg(name) {
   else if (isMaxi(name)) { redFlash(); }
   else confettiBurst(document.querySelector(".logo") || document.body);
 }
+
+// kleine Einblend-Nachricht
+function toast(html, ms = 2200, cls = "") {
+  const t = el(`<div class="toast ${cls}">${html}</div>`);
+  document.body.appendChild(t);
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms);
+  return t;
+}
+
+// Liebes-Modus: 7× aufs Logo tippen
+let logoTaps = 0, logoTapTimer = null;
+function logoTapped(name) {
+  easterEgg(name);
+  logoTaps++;
+  clearTimeout(logoTapTimer);
+  logoTapTimer = setTimeout(() => { logoTaps = 0; }, 2500);
+  if (logoTaps >= 7) {
+    logoTaps = 0;
+    if (!reducedMotion()) rainEmojis(["💕", "💖", "❤️", "💗", "🌹", "💞"], 40, 2800);
+    toast("💞 Liebes-Modus 💞<br><span class='toast-sub'>Linas &amp; Maxis für immer ❤️</span>", 3200, "love");
+  }
+}
+
+// persönliche Nachricht bei langem Druck auf den Avatar
+function avatarMessage(name) {
+  const msg = isLina(name) ? "Hallo Schatz 🐻‍❄️💕"
+    : isMaxi(name) ? "Systeme bereit, Boss 🤖"
+    : "Hey, du! 👋";
+  toast(msg, 2200, isMaxi(name) ? "maxi" : "love");
+  if (isLina(name) && !reducedMotion()) wavingBearCorner();
+}
+
+// Long-Press-Helfer (Touch + Maus), ohne den normalen Klick zu blockieren
+function onLongPress(elm, fn, ms = 550) {
+  let timer = null;
+  const start = () => { clearTimeout(timer); timer = setTimeout(fn, ms); };
+  const cancel = () => clearTimeout(timer);
+  elm.addEventListener("touchstart", start, { passive: true });
+  elm.addEventListener("touchend", cancel);
+  elm.addEventListener("touchmove", cancel, { passive: true });
+  elm.addEventListener("mousedown", start);
+  elm.addEventListener("mouseup", cancel);
+  elm.addEventListener("mouseleave", cancel);
+}
 // große Begrüßungs-Animation beim Login
 function playIntro(name) {
   return new Promise((resolve) => {
@@ -418,7 +462,10 @@ function renderApp() {
           <span class="logo" id="logo" title="✨">⚽</span>
           <div class="brand-text"><h1>${TITLE}</h1><small>WM 2026</small></div>
         </div>
-        <button class="icon-btn" id="switch" title="Spieler wechseln" aria-label="Spieler wechseln">${ICON_EXIT}</button>
+        <div class="userbox">
+          <span class="header-av" id="avatar" style="--pc:${themeFor(state.user.name).color}" title="Halt mich gedrückt 😉">${playerIcon(state.user.name)}</span>
+          <button class="icon-btn" id="switch" title="Spieler wechseln" aria-label="Spieler wechseln">${ICON_EXIT}</button>
+        </div>
       </div>
       <div class="tabs" id="tabs"></div>
       <div id="content"></div>
@@ -433,8 +480,14 @@ function renderApp() {
     b.onclick = () => { state.tab = key; renderApp(); };
     tabsEl.appendChild(b);
   }
-  view.querySelector("#switch").onclick = () => { setUser(null); init(); };
-  view.querySelector("#logo").onclick = () => easterEgg(state.user.name);
+  view.querySelector("#switch").onclick = () => {
+    if (isMaxi(state.user.name) && !reducedMotion()) {
+      toast("„I'll be back.\" 🤖", 1100, "maxi");
+      setTimeout(() => { setUser(null); init(); }, 1150);
+    } else { setUser(null); init(); }
+  };
+  view.querySelector("#logo").onclick = () => logoTapped(state.user.name);
+  onLongPress(view.querySelector("#avatar"), () => avatarMessage(state.user.name));
 
   const content = view.querySelector("#content");
   if (state.tab === "tippen") renderMatches(content);
@@ -1020,3 +1073,9 @@ function drawBracketLines(bracket) {
 
 init();
 setInterval(livePoll, 45000); // Live-Auto-Refresh
+// Winkender Eisbär: taucht für Lina ab und zu von allein auf
+setInterval(() => {
+  if (state.user && isLina(state.user.name) && !reducedMotion() && document.visibilityState === "visible") {
+    wavingBearCorner();
+  }
+}, 120000);
