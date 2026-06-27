@@ -496,22 +496,7 @@ body.on-login .login-sub { color: #cfe6d4; }
 @keyframes contentIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { #content { animation: none !important; } }
 
-/* ---------- Gruppentabellen-Zonen + Form ---------- */
 .gt-name { min-width: 0; }
-.gt-row.q { background: color-mix(in srgb, var(--green) 9%, transparent); }
-.gt-row.q .gt-pos { color: var(--green); font-weight: 900; }
-.gt-row.third .gt-pos { color: #f5b301; font-weight: 800; }
-.gt-row.out { opacity: .6; }
-.gt-form { display: inline-flex; gap: 3px; margin-left: 7px; flex: none; }
-.fdot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-.fdot.w { background: var(--green); }
-.fdot.d { background: var(--muted-2); }
-.fdot.l { background: var(--red); }
-.gt-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center; font-size: 11.5px; color: var(--muted); margin: 2px 0 4px; }
-.gt-legend .lg { display: inline-flex; align-items: center; gap: 5px; }
-.gt-legend .lg::before { content: ""; width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
-.gt-legend .lg.q::before { background: var(--green); }
-.gt-legend .lg.third::before { background: #f5b301; }
 
 /* ---------- Bracket: Finale, Live, Wisch-Hinweis ---------- */
 .bracket-hint { text-align: center; font-size: 11.5px; color: var(--muted-2); margin-bottom: 8px; }

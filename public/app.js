@@ -900,19 +900,18 @@ async function renderTurnier(content) {
 }
 
 function renderGroupTables(content, matches) {
-  const gm = matches.filter(m => m.stage && m.stage.startsWith("Gruppe "))
-    .sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff)); // chronologisch für die Form
   const groups = {};
-  for (const m of gm) {
+  for (const m of matches) {
+    if (!m.stage || !m.stage.startsWith("Gruppe ")) continue;
     const g = m.stage.slice("Gruppe ".length).trim();
     groups[g] = groups[g] || {};
-    for (const name of [m.home, m.away]) groups[g][name] = groups[g][name] || { name, sp: 0, tf: 0, ta: 0, pkt: 0, form: [] };
+    for (const name of [m.home, m.away]) groups[g][name] = groups[g][name] || { name, sp: 0, tf: 0, ta: 0, pkt: 0 };
     if (m.homeScore != null && m.awayScore != null) {
       const H = groups[g][m.home], A = groups[g][m.away];
       H.sp++; A.sp++; H.tf += m.homeScore; H.ta += m.awayScore; A.tf += m.awayScore; A.ta += m.homeScore;
-      if (m.homeScore > m.awayScore) { H.pkt += 3; H.form.push("w"); A.form.push("l"); }
-      else if (m.homeScore < m.awayScore) { A.pkt += 3; A.form.push("w"); H.form.push("l"); }
-      else { H.pkt++; A.pkt++; H.form.push("d"); A.form.push("d"); }
+      if (m.homeScore > m.awayScore) { H.pkt += 3; }
+      else if (m.homeScore < m.awayScore) { A.pkt += 3; }
+      else { H.pkt++; A.pkt++; }
     }
   }
   const keys = Object.keys(groups).sort();
@@ -920,18 +919,14 @@ function renderGroupTables(content, matches) {
   for (const g of keys) {
     const rows = Object.values(groups[g]).map(t => ({ ...t, diff: t.tf - t.ta }))
       .sort((a, b) => b.pkt - a.pkt || b.diff - a.diff || b.tf - a.tf || a.name.localeCompare(b.name));
-    const body = rows.map((t, i) => {
-      const zone = i < 2 ? "q" : i === 2 ? "third" : "out";
-      const form = t.form.map(r => `<span class="fdot ${r}"></span>`).join("");
-      return `
-        <div class="gt-row ${zone}">
-          <span class="gt-pos">${i + 1}</span>
-          <span class="gt-team">${flagHtml(t.name)}<span class="gt-name">${esc(t.name)}</span><span class="gt-form">${form}</span></span>
-          <span class="gt-num">${t.sp}</span>
-          <span class="gt-num">${t.diff > 0 ? "+" : ""}${t.diff}</span>
-          <span class="gt-num gt-pkt">${t.pkt}</span>
-        </div>`;
-    }).join("");
+    const body = rows.map((t, i) => `
+      <div class="gt-row">
+        <span class="gt-pos">${i + 1}</span>
+        <span class="gt-team">${flagHtml(t.name)}<span class="gt-name">${esc(t.name)}</span></span>
+        <span class="gt-num">${t.sp}</span>
+        <span class="gt-num">${t.diff > 0 ? "+" : ""}${t.diff}</span>
+        <span class="gt-num gt-pkt">${t.pkt}</span>
+      </div>`).join("");
     content.appendChild(el(`
       <div class="card gt-card">
         <div class="gt-row gt-head">
@@ -944,7 +939,6 @@ function renderGroupTables(content, matches) {
         ${body}
       </div>`));
   }
-  content.appendChild(el(`<div class="gt-legend"><span class="lg q">Platz 1–2: weiter</span><span class="lg third">Platz 3: evtl. bester Dritter</span></div>`));
 }
 
 const KO_LABELS = { 4: "Sechzehntelfinale", 5: "Achtelfinale", 6: "Viertelfinale", 7: "Halbfinale", 8: "Finale" };
