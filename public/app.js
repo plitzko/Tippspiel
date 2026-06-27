@@ -1020,3 +1020,9 @@ function drawBracketLines(bracket) {
 
 init();
 setInterval(livePoll, 45000); // Live-Auto-Refresh
+// Winkender Eisbär: taucht für Lina alle 30 Sek von allein auf
+setInterval(() => {
+  if (state.user && isLina(state.user.name) && !reducedMotion() && document.visibilityState === "visible") {
+    wavingBearCorner();
+  }
+}, 30000);
