@@ -657,8 +657,8 @@ async function renderStandings(content) {
   liveSig = resultsSignature(matches);
 
   const isKoStage = (st) => !!st && !st.startsWith("Gruppe");
-  const koExists = matches.some(m => isKoStage(m.stage));
-  if (!state.standingsPhaseUserSet) state.standingsPhase = koExists ? "ko" : "group";
+  const koActive = matches.some(m => isKoStage(m.stage) && m.started);
+  if (!state.standingsPhaseUserSet) state.standingsPhase = koActive ? "ko" : "group";
   const phase = state.standingsPhase || "group";
 
   content.innerHTML = "";
@@ -880,8 +880,8 @@ async function renderTurnier(content) {
   liveSig = resultsSignature(matches);
 
   const isKoStage = (st) => !!st && !st.startsWith("Gruppe");
-  const koExists = matches.some(m => isKoStage(m.stage));
-  if (!state.turnierViewUserSet) state.turnierView = koExists ? "baum" : "gruppen";
+  const koActive = matches.some(m => isKoStage(m.stage) && m.started);
+  if (!state.turnierViewUserSet) state.turnierView = koActive ? "baum" : "gruppen";
   const view = state.turnierView || "gruppen";
 
   content.innerHTML = "";

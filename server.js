@@ -43,7 +43,8 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Liste der Spieler + Punkte-Schema
 app.get("/api/status", (req, res) => {
-  const koExists = db.matches.some(isKnockout);
+  const now = Date.now();
+  const koActive = db.matches.some(m => isKnockout(m) && new Date(m.kickoff).getTime() <= now);
   const phasePoints = (u, wantKo) => {
     let pts = 0;
     for (const m of db.matches) {
@@ -67,7 +68,7 @@ app.get("/api/status", (req, res) => {
 
   res.json({
     players: db.users.map(u => ({ ...publicUser(u), group: phasePoints(u, false), ko: phasePoints(u, true) })),
-    phase: koExists ? "ko" : "group",
+    phase: koActive ? "ko" : "group",
     canAddPlayer: db.users.length < MAX_USERS,
     points: db.config.points,
     ko: db.config.ko,
