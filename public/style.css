@@ -209,7 +209,14 @@ body {
 .error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 18px; }
 .muted { color: var(--muted); font-size: 13px; }
 .section-title { font-size: 12px; color: var(--muted); margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .8px; font-weight: 700; }
-.empty { text-align: center; color: var(--muted); padding: 34px 16px; }
+.empty { text-align: center; color: var(--muted); padding: 44px 18px; }
+.empty-ico { font-size: 36px; line-height: 1; margin-bottom: 12px; filter: saturate(.9); }
+.empty-title { font-weight: 800; color: var(--text); font-size: 16px; letter-spacing: -.2px; }
+.empty-sub { font-size: 13px; color: var(--muted); margin-top: 6px; max-width: 320px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+
+/* ---------- Fokus sichtbar (Tastatur), aber nicht bei Maus/Touch ---------- */
+:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.tabs button:focus-visible, .icon-btn:focus-visible, .step:focus-visible { outline-offset: 1px; }
 
 /* ---------- Verwalten ---------- */
 .admin-grid { display: grid; grid-template-columns: 1fr 1fr 1.3fr .8fr auto; gap: 8px; align-items: end; }

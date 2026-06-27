@@ -405,6 +405,11 @@ function renderPlayerSelect(status) {
 }
 
 // ============ Haupt-App ============
+// Freundlicher Leerzustand: Icon + Titel (+ optionaler Untertext)
+function emptyHtml(icon, title, sub = "") {
+  return `<div class="empty"><div class="empty-ico">${icon}</div><div class="empty-title">${title}</div>${sub ? `<div class="empty-sub">${esc(sub)}</div>` : ""}</div>`;
+}
+
 function renderApp() {
   applyTheme(state.user.name);
   document.body.classList.remove("on-login");
@@ -433,7 +438,7 @@ function renderApp() {
   for (const [key, label] of tabs) {
     const b = el(`<button>${label}</button>`);
     if (state.tab === key) b.classList.add("active");
-    b.onclick = () => { state.tab = key; renderApp(); };
+    b.onclick = () => { if (state.tab !== key) { state.tab = key; renderApp(); window.scrollTo({ top: 0, behavior: "smooth" }); } };
     tabsEl.appendChild(b);
   }
   view.querySelector("#switch").onclick = () => { setUser(null); init(); };
@@ -453,11 +458,11 @@ async function renderMatches(content, dir = 0) {
   if (!content.querySelector(".day-nav")) showSkeleton(content);
   let data;
   try { data = await api("GET", "/api/matches"); }
-  catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
+  catch (e) { content.innerHTML = emptyHtml("⚠️", "Verbindungsproblem", e.message); return; }
 
   const matches = data.matches;
   liveSig = resultsSignature(matches);
-  if (!matches.length) { content.innerHTML = `<div class="empty">Noch keine Spiele angelegt.</div>`; return; }
+  if (!matches.length) { content.innerHTML = emptyHtml("🗓️", "Noch keine Spiele", "Sobald der Spielplan da ist, kannst du hier tippen."); return; }
 
   // nach Tag gruppieren
   const byDay = new Map();
@@ -649,7 +654,7 @@ async function renderStandings(content) {
   showSkeleton(content, 2);
   let standings, matchesData;
   try { [standings, matchesData] = await Promise.all([api("GET", "/api/standings"), api("GET", "/api/matches")]); }
-  catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
+  catch (e) { content.innerHTML = emptyHtml("⚠️", "Verbindungsproblem", e.message); return; }
   const players = standings.group;  // Spielerliste (Namen/IDs)
   const ord = (p) => isLina(p.name) ? 0 : isMaxi(p.name) ? 1 : 2;
   const displayOrder = [...players].sort((a, b) => ord(a) - ord(b));
@@ -676,7 +681,7 @@ async function renderStandings(content) {
 
   const phaseArr = phase === "ko" ? standings.ko : standings.group;
   (function scoreboard(arr) {
-    if (!arr || arr.length !== 2) { content.appendChild(el(`<div class="empty">Noch keine Spieler.</div>`)); return; }
+    if (!arr || arr.length !== 2) { content.appendChild(el(emptyHtml("👥", "Noch keine Spieler"))); return; }
     const order = [...arr].sort((a, b) => ord(a) - ord(b));
     const leader = arr[0];
     const tie = arr[0].points === arr[1].points;
@@ -875,7 +880,7 @@ async function renderTurnier(content) {
   showSkeleton(content, 2);
   let data;
   try { data = await api("GET", "/api/matches"); }
-  catch (e) { content.innerHTML = `<div class="empty">${e.message}</div>`; return; }
+  catch (e) { content.innerHTML = emptyHtml("⚠️", "Verbindungsproblem", e.message); return; }
   const matches = data.matches;
   liveSig = resultsSignature(matches);
 
@@ -915,7 +920,7 @@ function renderGroupTables(content, matches) {
     }
   }
   const keys = Object.keys(groups).sort();
-  if (!keys.length) { content.appendChild(el(`<div class="empty">Noch keine Gruppenspiele.</div>`)); return; }
+  if (!keys.length) { content.appendChild(el(emptyHtml("📊", "Noch keine Gruppenspiele", "Sobald Ergebnisse vorliegen, erscheint hier die Tabelle."))); return; }
   for (const g of keys) {
     const rows = Object.values(groups[g]).map(t => ({ ...t, diff: t.tf - t.ta }))
       .sort((a, b) => b.pkt - a.pkt || b.diff - a.diff || b.tf - a.tf || a.name.localeCompare(b.name));
@@ -954,10 +959,10 @@ async function renderBracketTree(content) {
   content.appendChild(loading);
   let data;
   try { data = await api("GET", "/api/bracket"); }
-  catch (e) { loading.outerHTML = `<div class="empty">${e.message}</div>`; return; }
+  catch (e) { loading.outerHTML = emptyHtml("⚠️", "Verbindungsproblem", e.message); return; }
   loading.remove();
   const ko = data.bracket || [];
-  if (!ko.length) { content.appendChild(el(`<div class="empty">K.o.-Plan noch nicht verfügbar.</div>`)); return; }
+  if (!ko.length) { content.appendChild(el(emptyHtml("🏟️", "K.o.-Plan noch nicht verfügbar"))); return; }
 
   content.appendChild(el(`<div class="bracket-hint">← wischen, um alle Runden zu sehen →</div>`));
 
