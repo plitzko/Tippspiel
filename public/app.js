@@ -942,6 +942,13 @@ function renderGroupTables(content, matches) {
 }
 
 const KO_LABELS = { 4: "Sechzehntelfinale", 5: "Achtelfinale", 6: "Viertelfinale", 7: "Halbfinale", 8: "Finale" };
+// Offizielle WM-2026-Auslosung: welches Spiel speist welches Folgespiel (Spielnummer -> [Quelle1, Quelle2])
+const BRACKET_CHILDREN = {
+  89: [74, 77], 90: [73, 75], 91: [76, 78], 92: [79, 80], 93: [83, 84], 94: [81, 82], 95: [86, 88], 96: [85, 87],
+  97: [89, 90], 98: [93, 94], 99: [91, 92], 100: [95, 96],
+  101: [97, 98], 102: [99, 100],
+  104: [101, 102]
+};
 async function renderBracketTree(content) {
   const loading = el(`<div class="empty">Lade K.o.-Baum…</div>`);
   content.appendChild(loading);
@@ -954,20 +961,27 @@ async function renderBracketTree(content) {
 
   const third = ko.find(m => m.stage === "Spiel um Platz 3");
   const tree = ko.filter(m => m.stage !== "Spiel um Platz 3");
-  const byRound = {};
-  for (const m of tree) (byRound[m.round] = byRound[m.round] || []).push(m);
-  for (const r in byRound) byRound[r].sort((a, b) => a.matchNumber - b.matchNumber);
+  const byNum = {};
+  for (const m of tree) byNum[m.matchNumber] = m;
+
+  // Reihenfolge je Runde aus der echten Bracket-Struktur (sauberer Baum, keine kreuzenden Linien)
+  const orderByRound = { 8: [104], 7: [], 6: [], 5: [], 4: [] };
+  for (let r = 8; r > 4; r--) {
+    for (const mn of orderByRound[r]) {
+      for (const kid of (BRACKET_CHILDREN[mn] || [])) orderByRound[r - 1].push(kid);
+    }
+  }
 
   const scroll = el(`<div class="bracket-scroll"></div>`);
   const bracket = el(`<div class="bracket"><svg class="bracket-lines" aria-hidden="true"></svg></div>`);
   scroll.appendChild(bracket);
   for (const r of [4, 5, 6, 7, 8]) {
-    const ms = byRound[r];
-    if (!ms || !ms.length) continue;
+    const order = orderByRound[r].filter(mn => byNum[mn]);
+    if (!order.length) continue;
     const col = el(`<div class="bround"></div>`);
     col.appendChild(el(`<div class="bround-title">${KO_LABELS[r] || ""}</div>`));
     const body = el(`<div class="bround-body"></div>`);
-    for (const m of ms) body.appendChild(bracketCell(m));
+    for (const mn of order) body.appendChild(bracketCell(byNum[mn]));
     col.appendChild(body);
     bracket.appendChild(col);
   }
@@ -991,7 +1005,7 @@ function bracketCell(m, standalone) {
     </div>`;
   const dt = new Date(m.kickoff).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
   return el(`
-    <div class="bcell ${standalone ? "standalone" : ""}">
+    <div class="bcell ${standalone ? "standalone" : ""}" data-mn="${m.matchNumber}">
       ${row(m.home, m.homeScore, hw)}
       ${row(m.away, m.awayScore, aw)}
       <div class="bc-date">${dt} · ${fmtTime(m.kickoff)} Uhr</div>
@@ -1005,20 +1019,17 @@ function drawBracketLines(bracket) {
   const W = bracket.scrollWidth, H = bracket.scrollHeight;
   svg.setAttribute("width", W); svg.setAttribute("height", H);
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  const rounds = [...bracket.querySelectorAll(".bround")];
+  const cellByMn = {};
+  bracket.querySelectorAll(".bcell").forEach(c => { cellByMn[c.dataset.mn] = c; });
   let paths = "";
-  for (let r = 0; r < rounds.length - 1; r++) {
-    const cur = [...rounds[r].querySelectorAll(".bcell")];
-    const nxt = [...rounds[r + 1].querySelectorAll(".bcell")];
-    for (let i = 0; i < nxt.length; i++) {
-      const p = nxt[i]; if (!p) continue;
-      const px = p.offsetLeft, pyc = p.offsetTop + p.offsetHeight / 2;
-      for (const c of [cur[i * 2], cur[i * 2 + 1]]) {
-        if (!c) continue;
-        const cx = c.offsetLeft + c.offsetWidth, cy = c.offsetTop + c.offsetHeight / 2;
-        const mid = (cx + px) / 2;
-        paths += `<path d="M${cx},${cy} H${mid} V${pyc} H${px}"/>`;
-      }
+  for (const parent of Object.keys(BRACKET_CHILDREN)) {
+    const p = cellByMn[parent]; if (!p) continue;
+    const px = p.offsetLeft, pyc = p.offsetTop + p.offsetHeight / 2;
+    for (const kid of BRACKET_CHILDREN[parent]) {
+      const c = cellByMn[kid]; if (!c) continue;
+      const cx = c.offsetLeft + c.offsetWidth, cy = c.offsetTop + c.offsetHeight / 2;
+      const mid = (cx + px) / 2;
+      paths += `<path d="M${cx},${cy} H${mid} V${pyc} H${px}"/>`;
     }
   }
   svg.innerHTML = paths;
@@ -1026,7 +1037,7 @@ function drawBracketLines(bracket) {
 
 init();
 setInterval(livePoll, 45000); // Live-Auto-Refresh
-// Winkender Eisbär: taucht für Lina alle 30 Sek von allein auf
+// Winkender Eisbär: taucht für Lina alle 10 Sek von allein auf
 setInterval(() => {
   if (state.user && isLina(state.user.name) && !reducedMotion() && document.visibilityState === "visible") {
     wavingBearCorner();
