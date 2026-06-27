@@ -988,7 +988,7 @@ function bracketCell(m, standalone) {
     <div class="bcell ${standalone ? "standalone" : ""}">
       ${row(m.home, m.homeScore, hw)}
       ${row(m.away, m.awayScore, aw)}
-      <div class="bc-date">${dt}</div>
+      <div class="bc-date">${dt} · ${fmtTime(m.kickoff)} Uhr</div>
     </div>`);
 }
 
