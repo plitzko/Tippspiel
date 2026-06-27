@@ -62,8 +62,8 @@ body {
   box-shadow: 0 10px 26px -8px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.25);
 }
 .brand-text { min-width: 0; }
-.brand h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: -.3px; line-height: 1.12; }
-.brand small { color: var(--muted); display: block; font-weight: 500; font-size: 12px; margin-top: 3px; }
+.brand h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: -.3px; line-height: 1.12; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand small { color: var(--muted); display: block; font-weight: 500; font-size: 12px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn {
   width: 44px; height: 44px; flex: none; border-radius: 13px; display: grid; place-items: center; cursor: pointer;
   background: var(--soft); border: 1px solid var(--line); color: var(--text); transition: .15s;

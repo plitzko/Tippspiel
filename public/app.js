@@ -416,7 +416,7 @@ function renderApp() {
       <div class="topbar">
         <div class="brand">
           <span class="logo" id="logo" title="✨">⚽</span>
-          <div class="brand-text"><h1>${TITLE}</h1><small>WM 2026</small></div>
+          <div class="brand-text"><h1>Linas &amp; Maxis</h1><small>WM 2026 Tippspiel</small></div>
         </div>
         <div class="userbox">
           <span class="header-av" id="avatar" style="--pc:${themeFor(state.user.name).color}" title="Tipp mich an 💞">${playerIcon(state.user.name)}</span>
