@@ -900,18 +900,19 @@ async function renderTurnier(content) {
 }
 
 function renderGroupTables(content, matches) {
+  const gm = matches.filter(m => m.stage && m.stage.startsWith("Gruppe "))
+    .sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff)); // chronologisch für die Form
   const groups = {};
-  for (const m of matches) {
-    if (!m.stage || !m.stage.startsWith("Gruppe ")) continue;
+  for (const m of gm) {
     const g = m.stage.slice("Gruppe ".length).trim();
     groups[g] = groups[g] || {};
-    for (const name of [m.home, m.away]) groups[g][name] = groups[g][name] || { name, sp: 0, s: 0, u: 0, n: 0, tf: 0, ta: 0, pkt: 0 };
+    for (const name of [m.home, m.away]) groups[g][name] = groups[g][name] || { name, sp: 0, tf: 0, ta: 0, pkt: 0, form: [] };
     if (m.homeScore != null && m.awayScore != null) {
       const H = groups[g][m.home], A = groups[g][m.away];
       H.sp++; A.sp++; H.tf += m.homeScore; H.ta += m.awayScore; A.tf += m.awayScore; A.ta += m.homeScore;
-      if (m.homeScore > m.awayScore) { H.s++; A.n++; H.pkt += 3; }
-      else if (m.homeScore < m.awayScore) { A.s++; H.n++; A.pkt += 3; }
-      else { H.u++; A.u++; H.pkt++; A.pkt++; }
+      if (m.homeScore > m.awayScore) { H.pkt += 3; H.form.push("w"); A.form.push("l"); }
+      else if (m.homeScore < m.awayScore) { A.pkt += 3; A.form.push("w"); H.form.push("l"); }
+      else { H.pkt++; A.pkt++; H.form.push("d"); A.form.push("d"); }
     }
   }
   const keys = Object.keys(groups).sort();
@@ -919,14 +920,18 @@ function renderGroupTables(content, matches) {
   for (const g of keys) {
     const rows = Object.values(groups[g]).map(t => ({ ...t, diff: t.tf - t.ta }))
       .sort((a, b) => b.pkt - a.pkt || b.diff - a.diff || b.tf - a.tf || a.name.localeCompare(b.name));
-    const body = rows.map((t, i) => `
-      <div class="gt-row ${i < 2 ? "q" : ""}">
-        <span class="gt-pos">${i + 1}</span>
-        <span class="gt-team">${flagHtml(t.name)}<span class="gt-name">${esc(t.name)}</span></span>
-        <span class="gt-num">${t.sp}</span>
-        <span class="gt-num">${t.diff > 0 ? "+" : ""}${t.diff}</span>
-        <span class="gt-num gt-pkt">${t.pkt}</span>
-      </div>`).join("");
+    const body = rows.map((t, i) => {
+      const zone = i < 2 ? "q" : i === 2 ? "third" : "out";
+      const form = t.form.map(r => `<span class="fdot ${r}"></span>`).join("");
+      return `
+        <div class="gt-row ${zone}">
+          <span class="gt-pos">${i + 1}</span>
+          <span class="gt-team">${flagHtml(t.name)}<span class="gt-name">${esc(t.name)}</span><span class="gt-form">${form}</span></span>
+          <span class="gt-num">${t.sp}</span>
+          <span class="gt-num">${t.diff > 0 ? "+" : ""}${t.diff}</span>
+          <span class="gt-num gt-pkt">${t.pkt}</span>
+        </div>`;
+    }).join("");
     content.appendChild(el(`
       <div class="card gt-card">
         <div class="gt-row gt-head">
@@ -939,6 +944,7 @@ function renderGroupTables(content, matches) {
         ${body}
       </div>`));
   }
+  content.appendChild(el(`<div class="gt-legend"><span class="lg q">Platz 1–2: weiter</span><span class="lg third">Platz 3: evtl. bester Dritter</span></div>`));
 }
 
 const KO_LABELS = { 4: "Sechzehntelfinale", 5: "Achtelfinale", 6: "Viertelfinale", 7: "Halbfinale", 8: "Finale" };
@@ -950,14 +956,16 @@ const BRACKET_CHILDREN = {
   104: [101, 102]
 };
 async function renderBracketTree(content) {
-  const loading = el(`<div class="empty">Lade K.o.-Baum…</div>`);
+  const loading = el(`<div class="card skel-card"><span class="skel s1"></span><span class="skel s2"></span></div>`);
   content.appendChild(loading);
   let data;
   try { data = await api("GET", "/api/bracket"); }
-  catch (e) { loading.textContent = e.message; return; }
+  catch (e) { loading.outerHTML = `<div class="empty">${e.message}</div>`; return; }
   loading.remove();
   const ko = data.bracket || [];
   if (!ko.length) { content.appendChild(el(`<div class="empty">K.o.-Plan noch nicht verfügbar.</div>`)); return; }
+
+  content.appendChild(el(`<div class="bracket-hint">← wischen, um alle Runden zu sehen →</div>`));
 
   const third = ko.find(m => m.stage === "Spiel um Platz 3");
   const tree = ko.filter(m => m.stage !== "Spiel um Platz 3");
@@ -996,6 +1004,9 @@ async function renderBracketTree(content) {
 
 function bracketCell(m, standalone) {
   const done = m.homeScore != null && m.awayScore != null;
+  const started = new Date(m.kickoff).getTime() <= Date.now();
+  const live = started && !done;
+  const isFinal = m.matchNumber === 104;
   const hw = done && m.homeScore > m.awayScore, aw = done && m.awayScore > m.homeScore;
   const row = (name, score, win) => `
     <div class="bc-row ${win ? "win" : (done && name ? "lose" : "")}">
@@ -1004,11 +1015,13 @@ function bracketCell(m, standalone) {
       <span class="bc-score">${done ? score : ""}</span>
     </div>`;
   const dt = new Date(m.kickoff).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  const meta = live ? `<span class="bc-live"><span class="live-dot"></span>LIVE</span>` : `${dt} · ${fmtTime(m.kickoff)} Uhr`;
   return el(`
-    <div class="bcell ${standalone ? "standalone" : ""}" data-mn="${m.matchNumber}">
+    <div class="bcell ${standalone ? "standalone" : ""} ${isFinal ? "final" : ""} ${live ? "is-live" : ""}" data-mn="${m.matchNumber}">
+      ${isFinal ? `<div class="bcell-cup">${ICON_TROPHY}</div>` : ""}
       ${row(m.home, m.homeScore, hw)}
       ${row(m.away, m.awayScore, aw)}
-      <div class="bc-date">${dt} · ${fmtTime(m.kickoff)} Uhr</div>
+      <div class="bc-date">${meta}</div>
     </div>`);
 }
 
